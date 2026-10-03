@@ -57,7 +57,7 @@ Write-Host "        Done." -ForegroundColor Green
 # 4. Desktop shortcut
 Write-Host "  [4/5] Creating desktop shortcut..." -ForegroundColor Cyan
 $lau="$INST\AWING-Login.bat"
-Set-Content -Path $lau -Encoding ASCII -Value ("@echo off`r`n& `"$pyExe`" `"$INST\app2.py`" %*")
+Set-Content -Path $lau -Encoding ASCII -Value ("@echo off`r`n`"$pyExe`" `"$INST\app2.py`" %*")
 $ws=New-Object -ComObject WScript.Shell
 $lnk=$ws.CreateShortcut("$([Environment]::GetFolderPath('Desktop'))\AWING Auto Login.lnk")
 $lnk.TargetPath=$lau
@@ -71,7 +71,7 @@ Write-Host "  [5/5] Registering 'wifi' command..." -ForegroundColor Cyan
 $wa="$env:LOCALAPPDATA\Microsoft\WindowsApps"
 $wf="$wa\wifi.cmd"
 New-Item -ItemType Directory -Force -Path $wa | Out-Null
-Set-Content -Path $wf -Encoding ASCII -Value ("@echo off`r`n& `"$pyExe`" `"$INST\app2.py`" %*")
+Set-Content -Path $wf -Encoding ASCII -Value ("@echo off`r`n`"$pyExe`" `"$INST\app2.py`" %*")
 Write-Host "        Done. Now type 'wifi' in any terminal!" -ForegroundColor Green
 
 Write-Host ""
