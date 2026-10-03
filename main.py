@@ -57,7 +57,7 @@ LOGO = [
     "\\ \\_/ /      | |___| |\\  || |_\\ \\ | |___| (_) || | | | |",
     " \\___/       \\____/\\_| \\_/ \\____/ \\_____/\\___/ |_|_| |_|",
 ]
-APP_VERSION  = "1.0.1"
+APP_VERSION  = "1.0.2"
 GITHUB_REPO  = "dmsang/O-ENGLoin"
 
 SPIN = ["\u280b","\u2819","\u2839","\u2838","\u283c","\u2834","\u2826","\u2827","\u2807","\u280f"]
@@ -831,17 +831,23 @@ def check_update_available():
     """Return (latest_ver, download_url) or (None, err_str) on failure."""
     try:
         api = "https://api.github.com/repos/" + GITHUB_REPO + "/releases/latest"
-        req = urllib.request.urlopen(api, timeout=8)
-        data = json.loads(req.read().decode())
+        req = urllib.request.Request(api, headers={"User-Agent": "AWING-AutoLogin/" + APP_VERSION})
+        try:
+            r = urllib.request.urlopen(req, timeout=10)
+        except urllib.error.HTTPError as he:
+            if he.code == 404:
+                return APP_VERSION, None
+            raise
+        data = json.loads(r.read().decode())
         latest = data.get("tag_name", "").lstrip("v")
         dl_url = None
         for asset in data.get("assets", []):
-            if asset.get("name") == "app2.py":
+            if asset.get("name") in ("main.py", "app2.py"):
                 dl_url = asset.get("browser_download_url")
                 break
         if not dl_url:
             dl_url = ("https://raw.githubusercontent.com/" + GITHUB_REPO +
-                      "/refs/tags/v" + latest + "/app2.py")
+                      "/refs/tags/v" + latest + "/main.py")
         return latest, dl_url
     except Exception as e:
         return None, str(e)
@@ -873,17 +879,20 @@ def update_screen():
         try:
             dest = os.path.abspath(sys.argv[0])
             tmp  = dest + ".update_tmp"
-            req  = urllib.request.urlopen(dl_url[0], timeout=30)
-            total = int(req.headers.get("Content-Length") or 0)
+            req  = urllib.request.Request(dl_url[0], headers={"User-Agent": "AWING-AutoLogin/" + APP_VERSION})
+            resp = urllib.request.urlopen(req, timeout=30)
+            total = int(resp.headers.get("Content-Length") or 0)
             done  = 0
             with open(tmp, "wb") as f:
                 while True:
-                    chunk = req.read(8192)
+                    chunk = resp.read(8192)
                     if not chunk: break
                     f.write(chunk); done += len(chunk)
                     if total > 0: progress[0] = int(done * 100 / total)
             bak = dest + ".bak"
-            if os.path.exists(bak): os.remove(bak)
+            if os.path.exists(bak):
+                try: os.remove(bak)
+                except Exception: pass
             os.rename(dest, bak)
             os.rename(tmp, dest)
             state[0] = "done"
