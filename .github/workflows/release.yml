@@ -43,7 +43,8 @@ jobs:
           echo "${{ steps.ver.outputs.version }}" > VERSION
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add VERSION
+          sed -i -E 's/APP_VERSION[[:space:]]*=[[:space:]]*"[^"]+"/APP_VERSION  = "${{ steps.ver.outputs.version }}"/' main.py
+          git add VERSION main.py
           git diff --staged --quiet || git commit -m "chore: bump VERSION to ${{ steps.ver.outputs.version }}"
           git push
 
