@@ -65,4 +65,7 @@ jobs:
             main.py
             install.ps1
             install.cmd
+            uninstall.ps1
+            uninstall.cmd
             VERSION
+

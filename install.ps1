@@ -1,4 +1,4 @@
-# AWING Auto Login - Installer
+﻿# AWING Auto Login - Installer
 # irm https://raw.githubusercontent.com/dmsang/O-ENGLoin/master/install.ps1 | iex
 
 $ErrorActionPreference="Stop"
@@ -46,6 +46,8 @@ Write-Host "  [2/5] Downloading app..." -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path $INST | Out-Null
 Invoke-WebRequest -Uri "$RAW/main.py" -OutFile "$INST\main.py" -UseBasicParsing
 Invoke-WebRequest -Uri "$RAW/VERSION" -OutFile "$INST\VERSION" -UseBasicParsing
+Invoke-WebRequest -Uri "$RAW/uninstall.ps1" -OutFile "$INST\uninstall.ps1" -UseBasicParsing
+Invoke-WebRequest -Uri "$RAW/uninstall.cmd" -OutFile "$INST\uninstall.cmd" -UseBasicParsing
 Write-Host "        Done." -ForegroundColor Green
 
 # 3. Deps
@@ -78,4 +80,6 @@ Write-Host ""
 Write-Host "  Installation complete!" -ForegroundColor Green
 Write-Host "  - Desktop shortcut: AWING Auto Login" -ForegroundColor White
 Write-Host "  - From any terminal: wifi" -ForegroundColor White
+Write-Host "  - To uninstall: wifi --uninstall" -ForegroundColor DarkGray
 Write-Host ""
+

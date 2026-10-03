@@ -41,3 +41,9 @@ Windows 10/11, Python 3.10+
 ## License
 
 MIT
+
+## Uninstall
+
+- From app: select 'Uninstall' from menu, or run 'wifi --uninstall'
+- One-line PowerShell: irm https://raw.githubusercontent.com/dmsang/O-ENGLoin/master/uninstall.ps1 | iex
+- Command Prompt: download and run install.cmd or uninstall.cmd

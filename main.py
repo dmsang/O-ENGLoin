@@ -1078,6 +1078,81 @@ def help_screen():
         elif str(key).upper() in ("Q", "\x1b") or key.code == term.KEY_ESCAPE:
             break
 
+# ── Uninstall ─────────────────────────────────────────────────────────────────
+def perform_uninstall():
+    try: stop_bg_worker()
+    except Exception: pass
+    try: stop_tray()
+    except Exception: pass
+    try: exit_alt()
+    except Exception: pass
+    try: show_cursor()
+    except Exception: pass
+    print(C_WARN + "\nUninstalling AWING Auto Login..." + RST)
+    # 1. Desktop shortcut
+    try:
+        desk = os.path.join(os.environ.get("USERPROFILE", ""), "Desktop", "AWING Auto Login.lnk")
+        if os.path.exists(desk):
+            os.remove(desk)
+            print(C_OK + "  ✓ Desktop shortcut removed." + RST)
+    except Exception: pass
+    # 2. wifi.cmd
+    try:
+        wa = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WindowsApps", "wifi.cmd")
+        if os.path.exists(wa):
+            os.remove(wa)
+            print(C_OK + "  ✓ 'wifi' command removed." + RST)
+    except Exception: pass
+    # 3. Schedule install directory cleanup
+    try:
+        inst_dir = os.path.join(os.environ.get("LOCALAPPDATA", ""), "AWING-Login")
+        if os.path.exists(inst_dir):
+            cmd = f'timeout /t 1 /nobreak >nul & rmdir /s /q "{inst_dir}"'
+            subprocess.Popen(["cmd.exe", "/c", cmd], creationflags=subprocess.CREATE_NO_WINDOW)
+            print(C_OK + "  ✓ App files scheduled for deletion." + RST)
+    except Exception: pass
+    print(C_OK + bold("\n✓ AWING Auto Login has been uninstalled successfully.\n") + RST)
+    sys.exit(0)
+
+def uninstall_screen():
+    sel = [1]  # 0=Yes Uninstall, 1=Cancel
+    def build():
+        W = term.width or 80; H = term.height or 24
+        bw = min(62, W - 4); bh = 14; bx = (W - bw) // 2; by = (H - bh) // 2
+        rows = [""] * H
+        rows[by]   = " " * bx + box_top(bw, " UNINSTALL ")
+        rows[by+1] = " " * bx + box_row(bw, center_in(C_ERR + bold(" Completely Remove AWING Auto Login? ") + RST, bw - 2))
+        rows[by+2] = " " * bx + box_mid(bw)
+        rows[by+3] = " " * bx + box_row(bw, "  This will permanently remove:")
+        rows[by+4] = " " * bx + box_row(bw, "  • Desktop shortcut ('AWING Auto Login')")
+        rows[by+5] = " " * bx + box_row(bw, "  • 'wifi' terminal command")
+        rows[by+6] = " " * bx + box_row(bw, "  • App files and saved configuration")
+        rows[by+7] = " " * bx + box_mid(bw)
+        b_yes = " Yes, Uninstall "; b_no = "   Cancel   "; gap = 4
+        b0 = (C_ERR + bold(b_yes) + RST) if sel[0] == 0 else (C_DIM + b_yes + RST)
+        b1 = (C_SEL + b_no + RST) if sel[0] == 1 else (C_DIM + b_no + RST)
+        total = len(b_yes) + len(b_no) + gap; bb = (bw - total) // 2
+        rows[by+8] = " " * bx + box_row(bw, " " * bb + b0 + " " * gap + b1)
+        rows[by+9] = " " * bx + box_mid(bw)
+        hint = C_KEY + "Left/Right" + RST + " select   " + C_KEY + "Enter" + RST + " confirm   " + C_KEY + "Esc" + RST + " cancel"
+        rows[by+10] = " " * bx + box_row(bw, center_in(hint, bw - 2))
+        for rr in range(by+11, by+13):
+            rows[rr] = " " * bx + box_mid(bw)
+        rows[by+13] = " " * bx + box_bot(bw)
+        return rows
+
+    while True:
+        render(build())
+        key = read_key()
+        if not key: continue
+        ks = str(key).upper()
+        if key.code in (term.KEY_LEFT, term.KEY_RIGHT):
+            sel[0] = 1 - sel[0]
+        elif key.code == term.KEY_ENTER or ks in ("\n", "\r"):
+            return (sel[0] == 0)
+        elif ks in ("Q", "\x1b") or key.code == term.KEY_ESCAPE:
+            return False
+
 # ── Main menu ───────────────────────────────────────────────────────────────────
 MENU_ITEMS=[
     ("\u25b6  Auto Login",         "auto"),
@@ -1086,6 +1161,7 @@ MENU_ITEMS=[
     ("\u2b06  Check for Updates",  "update"),
     ("?  User Guide",              "help"),
     ("\u2699  Settings",           "settings"),
+    ("✗  Uninstall",          "uninstall"),
     ("\u2715  Exit",               "quit"),
 ]
 
@@ -1225,6 +1301,19 @@ def settings_screen(settings):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
+    if "--uninstall" in sys.argv:
+        print("\n" + bold("AWING Auto Login - Uninstaller"))
+        try:
+            ans = input("Are you sure you want to completely uninstall? (y/N): ").strip().lower()
+        except (KeyboardInterrupt, EOFError):
+            print("\nCanceled.")
+            return
+        if ans in ("y", "yes"):
+            perform_uninstall()
+        else:
+            print("Uninstall canceled.")
+        return
+
     settings=load_settings()
     _notif_on[0] = bool(settings.get("notifications", False))
     _debug_on[0] = bool(settings.get("debug", False))
@@ -1282,6 +1371,11 @@ def main():
                 settings=settings_screen(settings)
                 _notif_on[0]=bool(settings.get("notifications",False))
                 _debug_on[0]=bool(settings.get("debug",False))
+
+            elif action=="uninstall":
+                if uninstall_screen():
+                    perform_uninstall()
+                    return
 
             elif action=="quit":
                 break
