@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+settings.json
+_*.py
+*.bak
+*.update_tmp
