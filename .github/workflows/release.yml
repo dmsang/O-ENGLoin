@@ -62,7 +62,7 @@ jobs:
           prerelease: ${{ github.event.inputs.prerelease == 'true' }}
           generate_release_notes: true
           files: |
-            app2.py
+            main.py
             install.ps1
             install.cmd
             VERSION

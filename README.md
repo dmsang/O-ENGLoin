@@ -20,7 +20,7 @@ Or download and double-click **install.cmd**.
 
 1. Python 3.10+ from https://python.org
 2. `pip install requests beautifulsoup4 blessed pystray pillow speedtest-cli`
-3. `python app2.py`
+3. `python main.py`
 
 ## Features
 
