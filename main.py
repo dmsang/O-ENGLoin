@@ -285,7 +285,7 @@ def start_tray():
     def on_quit(icon,item):
         _tray_quit.set(); icon.stop()
     menu = pystray.Menu(
-        pystray.MenuItem("Open window", on_open, default=True),
+        pystray.MenuItem('Open window', on_open, default=True),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Exit", on_quit),
     )
@@ -411,7 +411,7 @@ def do_login(settings, log_cb):
         dbg("[login] form post status="+str(r2.status_code)+" final="+r2.url+" (%.0fms)"%(1000*(time.time()-t0)))
         dbg("[login] response len="+str(len(r2.text)))
 
-        log_cb("INFO","Kiem tra Internet...")
+        log_cb("INFO","Checking internet...")
         time.sleep(2)
         if has_internet(settings):
             log_cb("OK","Login successful! Internet OK"); return True
@@ -724,7 +724,7 @@ def network_test_screen(settings):
         bw=min(70,W-4); bh=20; bx=(W-bw)//2; by=max(0,(H-bh)//2)
         rows=[""]*H
 
-        rows[by]   = " "*bx + box_top(bw," DO MANG ")
+        rows[by]   = " "*bx + box_top(bw," NETWORK TEST ")
         rows[by+1] = " "*bx + box_row(bw, center_in(C_TITLE+bold(" Network Speed Test "),bw-2))
         rows[by+2] = " "*bx + box_mid(bw)
 
@@ -732,7 +732,7 @@ def network_test_screen(settings):
         r  = by+3
 
         if phase[0] == "idle":
-            rows[r] = " "*bx + box_row(bw, center_in(C_KEY+"Enter"+RST+" to start network test   "+C_KEY+"Q"+RST+" quay lai",bw-2))
+            rows[r] = " "*bx + box_row(bw, center_in(C_KEY+"Enter"+RST+" to start network test   "+C_KEY+"Q"+RST+" back",bw-2))
             r+=1
         elif phase[0] in ("running",):
             spin = SPIN[spin_i[0]%len(SPIN)]; spin_i[0]+=1
@@ -799,7 +799,7 @@ def network_test_screen(settings):
         if phase[0] == "idle":
             hint = C_KEY+"Enter"+RST+" start   "+C_KEY+"Q"+RST+" back"
         elif phase[0] == "running":
-            hint = C_WARN+"Testing... please wait"+RST+"   "+C_KEY+"Q"+RST+" huy"
+            hint = C_WARN+"Testing... please wait"+RST+"   "+C_KEY+"Q"+RST+" cancel"
         else:
             hint = C_KEY+"Enter"+RST+" retest   "+C_KEY+"Q"+RST+" back"
         rows[bot-1] = " "*bx + box_row(bw, " "+hint)
@@ -978,12 +978,104 @@ def update_screen():
             if key.code in (term.KEY_ENTER, term.KEY_ESCAPE) or ks in ("Q", "\n", "\r"):
                 return
 
+# ── User Guide (Help) ─────────────────────────────────────────────────────────
+def help_screen():
+    scroll = [0]
+    HELP_LINES = [
+        C_TITLE + bold("=== AWING AUTO LOGIN - USER GUIDE ===") + RST,
+        "",
+        C_TITLE + bold("[1] WHAT IS THIS APP?") + RST,
+        "  AWING Auto Login keeps your internet alive on captive portal",
+        "  Wi-Fi networks (e.g. INET Free WiFi). It constantly checks",
+        "  connectivity and automatically re-authenticates when the session expires.",
+        "",
+        C_TITLE + bold("[2] MAIN MENU OPTIONS") + RST,
+        "  " + C_KEY + "▶  Auto Login" + RST + "        Live monitoring screen with real-time logs.",
+        "  " + C_KEY + "□  Run in Background" + RST + " Minimizes console to system tray.",
+        "  " + C_KEY + "⎔  Network Test" + RST + "      Ping check + download/upload speed test.",
+        "  " + C_KEY + "⬆  Check for Updates" + RST + " Checks GitHub Releases for new versions.",
+        "  " + C_KEY + "?  User Guide" + RST + "         This help screen.",
+        "  " + C_KEY + "⚙  Settings" + RST + "           Configure gateway, intervals, debug, etc.",
+        "  " + C_KEY + "✕  Exit" + RST + "               Quit the application.",
+        "",
+        C_TITLE + bold("[3] SYSTEM TRAY (BACKGROUND MODE)") + RST,
+        "  • Select 'Run in Background' from the main menu.",
+        "  • Console window hides; icon appears in taskbar (bottom-right).",
+        "  • Tray icon color shows live status:",
+        "      " + C_OK + "● Green" + RST + "  = Online (internet active)",
+        "      " + C_ERR + "● Red" + RST + "    = Offline (disconnected)",
+        "      " + C_WARN + "● Yellow" + RST + " = Logging in to captive portal",
+        "  • Left-click or right-click icon -> 'Open window' to restore CLI.",
+        "  • Right-click icon -> 'Exit' to quit completely.",
+        "",
+        C_TITLE + bold("[4] QUICK COMMAND ('wifi')") + RST,
+        "  • Open the app from ANY terminal simply by typing:  " + C_OK + "wifi" + RST,
+        "  • Works in CMD, PowerShell, Windows Terminal, and Win+R dialog.",
+        "",
+        C_TITLE + bold("[5] KEYBOARD SHORTCUTS") + RST,
+        "  " + C_KEY + "↑ / ↓" + RST + "           Move selection / scroll logs & guide",
+        "  " + C_KEY + "Enter" + RST + "           Select / Confirm / Toggle ON-OFF",
+        "  " + C_KEY + "Space / ← →" + RST + "     Toggle ON/OFF on boolean settings directly",
+        "  " + C_KEY + "End / Home" + RST + "      Jump to newest / oldest line in logs & guide",
+        "  " + C_KEY + "Q / Esc" + RST + "         Back to previous screen / Exit",
+        "  " + C_KEY + "X" + RST + "               Stop background worker while viewing logs",
+        "",
+        C_TITLE + bold("[6] SETTINGS EXPLAINED") + RST,
+        "  • " + C_VAL + "Default Gateway" + RST + "      Router IP address (default: 192.168.200.1)",
+        "  • " + C_VAL + "Check Interval" + RST + "       Seconds between connectivity checks (15s)",
+        "  • " + C_VAL + "Retry Interval" + RST + "       Seconds before retrying after failure (5s)",
+        "  • " + C_VAL + "Required WiFi SSID" + RST + "   Target Wi-Fi SSID ('INET - Free WiFi')",
+        "  • " + C_VAL + "Notifications" + RST + "        Desktop notifications on status change",
+        "  • " + C_VAL + "Debug Mode" + RST + "           Detailed logs (HTTP, tokens, MAC, etc.)",
+        "",
+        C_TITLE + bold("[7] ONE-LINE INSTALL COMMAND") + RST,
+        "  " + C_DIM + "irm https://raw.githubusercontent.com/dmsang/O-ENGLoin/master/install.ps1 | iex" + RST,
+    ]
+    def build():
+        W = term.width or 80; H = term.height or 24
+        bw = min(74, W - 4); bh = H - 4; bx = (W - bw) // 2; by = 2
+        content_h = bh - 4
+        total = len(HELP_LINES)
+        start = scroll[0]
+        rows = [""] * H
+        rows[by]   = " " * bx + box_top(bw, " USER GUIDE ")
+        rows[by+1] = " " * bx + box_row(bw, center_in(C_TITLE + bold(" AWING Auto Login ") + C_DIM + "v" + APP_VERSION + RST, bw - 2))
+        rows[by+2] = " " * bx + sep_row(bw)
+        for i in range(content_h):
+            idx = start + i
+            line = HELP_LINES[idx] if idx < total else ""
+            rows[by + 3 + i] = " " * bx + box_row(bw, " " + line)
+        sep_y = by + 3 + content_h
+        rows[sep_y] = " " * bx + sep_row(bw)
+        pct = f"({start + 1}-{min(start + content_h, total)}/{total})"
+        hint = C_KEY + "↑↓" + RST + " scroll " + C_DIM + pct + RST + "   " + C_KEY + "Home/End" + RST + " top/bottom   " + C_KEY + "Q/Esc" + RST + " back"
+        rows[sep_y + 1] = " " * bx + box_row(bw, " " + hint)
+        rows[sep_y + 2] = " " * bx + box_bot(bw)
+        return rows
+
+    while True:
+        render(build())
+        key = read_key()
+        H = term.height or 24; content_h = H - 8; total = len(HELP_LINES)
+        max_scroll = max(0, total - content_h)
+        if key.code == term.KEY_UP:
+            scroll[0] = max(0, scroll[0] - 1)
+        elif key.code == term.KEY_DOWN:
+            scroll[0] = min(max_scroll, scroll[0] + 1)
+        elif key.code == term.KEY_HOME:
+            scroll[0] = 0
+        elif key.code == term.KEY_END:
+            scroll[0] = max_scroll
+        elif str(key).upper() in ("Q", "\x1b") or key.code == term.KEY_ESCAPE:
+            break
+
 # ── Main menu ───────────────────────────────────────────────────────────────────
 MENU_ITEMS=[
     ("\u25b6  Auto Login",         "auto"),
     ("\u25a1  Run in Background",  "tray"),
     ("⎔  Network Test",         "nettest"),
     ("\u2b06  Check for Updates",  "update"),
+    ("?  User Guide",              "help"),
     ("\u2699  Settings",           "settings"),
     ("\u2715  Exit",               "quit"),
 ]
@@ -1036,72 +1128,90 @@ def main_menu(settings, tray_running=False):
         elif str(key).upper()=="Q": return "quit"
 
 # ── Settings screen ───────────────────────────────────────────────────────────
+# ── Settings screen ───────────────────────────────────────────────────────────
 def settings_screen(settings):
-    sel=0; n=len(SETTING_KEYS); msg=""; editing=False; buf=""
+    sel = 0; n = len(SETTING_KEYS); msg = ""; editing = False; buf = ""
 
     def build():
-        W=term.width or 80; H=term.height or 24
-        bw=min(74,W-4); bh=n+7; bx=(W-bw)//2
-        rows=[""]*H
-        rows[1]=" "*bx+box_top(bw,"SETTINGS")
-        rows[2]=" "*bx+box_row(bw,bold("  #  ")+C_DIM+"Label".ljust(28)+"Value"+RST)
-        rows[3]=" "*bx+sep_row(bw)
-        for i,key in enumerate(SETTING_KEYS):
-            label=SETTING_LABELS[key]; value=settings[key]; ir=4+i
-            num = str(i+1).ljust(3)
-            if i==sel:
-                vs=(C_WARN+buf+"\u2588"+RST) if editing else (C_VAL+str(value)+RST)
-                content=C_SEL+" "+num+" "+label.ljust(28)+RST+vs
+        W = term.width or 80; H = term.height or 24
+        bw = min(74, W - 4); bh = n + 7; bx = (W - bw) // 2
+        rows = [""] * H
+        rows[1] = " " * bx + box_top(bw, "SETTINGS")
+        rows[2] = " " * bx + box_row(bw, bold("  #  ") + C_DIM + "Label".ljust(28) + "Value" + RST)
+        rows[3] = " " * bx + sep_row(bw)
+        for i, key in enumerate(SETTING_KEYS):
+            label = SETTING_LABELS[key]; value = settings[key]; ir = 4 + i
+            num = str(i + 1).ljust(3)
+            if isinstance(value, bool):
+                val_disp = (C_OK + bold("[ ON  ]") + RST) if value else (C_DIM + "[ OFF ]" + RST)
             else:
-                content=" "+C_DIM+num+RST+" "+label.ljust(28)+C_VAL+str(value)+RST
-            rows[ir]=" "*bx+box_row(bw,content)
-        sp=4+n
-        rows[sp]=" "*bx+sep_row(bw)
-        rows[sp+1]=" "*bx+box_row(bw,(C_OK if msg.startswith("\u2713") else C_WARN)+msg+RST if msg else "")
+                val_disp = C_VAL + str(value) + RST
+            if i == sel:
+                vs = (C_WARN + buf + "█" + RST) if editing else val_disp
+                content = C_SEL + " " + num + " " + label.ljust(28) + RST + " " + vs
+            else:
+                content = " " + C_DIM + num + RST + " " + label.ljust(28) + " " + val_disp
+            rows[ir] = " " * bx + box_row(bw, content)
+        sp = 4 + n
+        rows[sp] = " " * bx + sep_row(bw)
+        rows[sp + 1] = " " * bx + box_row(bw, (C_OK if msg.startswith("✓") else C_WARN) + msg + RST if msg else "")
         if editing:
-            hint=C_KEY+"Enter"+RST+" confirm   "+C_KEY+"Esc"+RST+" cancel"
+            hint = C_KEY + "Enter" + RST + " confirm   " + C_KEY + "Esc" + RST + " cancel"
         else:
-            hint=(C_KEY+"\u2191\u2193"+RST+" navigate   "+C_KEY+"Enter"+RST+" edit   "+
-                  C_KEY+"R"+RST+" reset   "+C_KEY+"S"+RST+" save   "+C_KEY+"Q"+RST+" back")
-        rows[sp+2]=" "*bx+box_row(bw,hint)
-        rows[sp+3]=" "*bx+box_bot(bw)
+            cur_k = SETTING_KEYS[sel]
+            if isinstance(settings[cur_k], bool):
+                act = C_KEY + "Enter/Space" + RST + " toggle [ON/OFF]"
+            else:
+                act = C_KEY + "Enter" + RST + " edit"
+            hint = (C_KEY + "↑↓" + RST + " move   " + act +
+                    "   " + C_KEY + "R" + RST + " reset   " + C_KEY + "S" + RST + " save   " + C_KEY + "Q" + RST + " back")
+        rows[sp + 2] = " " * bx + box_row(bw, hint)
+        rows[sp + 3] = " " * bx + box_bot(bw)
         return rows
 
     while True:
         render(build())
-        key=read_key(); msg=""
+        key = read_key(); msg = ""
+        cur_k = SETTING_KEYS[sel]
+        is_bool = isinstance(settings[cur_k], bool)
         if editing:
-            if key.code==term.KEY_ESCAPE: editing=False; buf=""
-            elif key.code==term.KEY_ENTER or str(key) in ("\n","\r"):
+            if key.code == term.KEY_ESCAPE:
+                editing = False; buf = ""
+            elif key.code == term.KEY_ENTER or str(key) in ("\n", "\r"):
                 if buf:
-                    k=SETTING_KEYS[sel]; cur=settings[k]
-                    if isinstance(cur,bool):
-                        if buf.lower() in ("true","1","yes","on"):
-                            settings[k]=True;  msg="\u2713 "+SETTING_LABELS[k]+" = True"
-                        elif buf.lower() in ("false","0","no","off"):
-                            settings[k]=False; msg="\u2713 "+SETTING_LABELS[k]+" = False"
-                        else: msg="\u26a0 Enter: true or false"
-                    elif isinstance(cur,int):
-                        if buf.isdigit(): settings[k]=int(buf); msg="\u2713 Updated: ="+str(settings[k])
-                        else: msg="\u26a0 Must be an integer"
-                    else: settings[k]=buf; msg="\u2713 Updated: "+SETTING_LABELS[k]
-                editing=False; buf=""
-            elif key.code==term.KEY_BACKSPACE or str(key) in ("\x7f","\x08"):
-                buf=buf[:-1]
+                    cur = settings[cur_k]
+                    if isinstance(cur, int):
+                        if buf.isdigit():
+                            settings[cur_k] = int(buf); msg = "✓ Updated: " + str(settings[cur_k])
+                        else:
+                            msg = "⚠ Must be an integer"
+                    else:
+                        settings[cur_k] = buf; msg = "✓ Updated: " + SETTING_LABELS[cur_k]
+                editing = False; buf = ""
+            elif key.code == term.KEY_BACKSPACE or str(key) in ("\x7f", "\x08"):
+                buf = buf[:-1]
             else:
-                ch=str(key)
-                if ch.isprintable(): buf+=ch
+                ch = str(key)
+                if ch.isprintable(): buf += ch
         else:
-            ks=str(key).upper()
-            if key.code==term.KEY_UP:     sel=(sel-1)%n
-            elif key.code==term.KEY_DOWN: sel=(sel+1)%n
-            elif key.code==term.KEY_ENTER or str(key) in ("\n","\r"): editing=True; buf=""
-            elif ks=="R":
-                for k in DEFAULT_SETTINGS: settings[k]=DEFAULT_SETTINGS[k]
-                msg="\u2713 Reset to defaults"
-            elif ks=="S":
-                msg=("\u2713 Saved!" if save_settings(settings) else "\u26a0 Failed to save!")
-            elif ks=="Q" or key.code==term.KEY_ESCAPE: break
+            ks = str(key).upper()
+            if key.code == term.KEY_UP:
+                sel = (sel - 1) % n
+            elif key.code == term.KEY_DOWN:
+                sel = (sel + 1) % n
+            elif is_bool and (key.code in (term.KEY_ENTER, term.KEY_LEFT, term.KEY_RIGHT) or str(key) in ("\n", "\r", " ")):
+                settings[cur_k] = not settings[cur_k]
+                st_txt = "ON" if settings[cur_k] else "OFF"
+                msg = f"✓ {SETTING_LABELS[cur_k]} = {st_txt}"
+            elif not is_bool and (key.code == term.KEY_ENTER or str(key) in ("\n", "\r")):
+                editing = True; buf = str(settings[cur_k])
+            elif ks == "R":
+                for k in DEFAULT_SETTINGS: settings[k] = DEFAULT_SETTINGS[k]
+                msg = "✓ Reset to defaults"
+            elif ks == "S":
+                msg = ("✓ Saved!" if save_settings(settings) else "⚠ Failed to save!")
+            elif ks == "Q" or key.code == term.KEY_ESCAPE:
+                break
     return settings
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -1155,6 +1265,9 @@ def main():
 
             elif action=="update":
                 update_screen()
+
+            elif action=="help":
+                help_screen()
 
             elif action=="settings":
                 settings=settings_screen(settings)
