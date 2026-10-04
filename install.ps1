@@ -64,8 +64,8 @@ $FILES = @(
     "awing/screens/nettest.py",
     "awing/screens/update.py",
     "awing/screens/help.py",
-    "awing/screens/donate.py"
-    "awing/beta.py"
+    "awing/screens/donate.py",
+    "awing/beta.py",
     "awing/screens/beta_screen.py",
     "awing/screens/uninstall.py",
     "awing/screens/menu.py",

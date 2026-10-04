@@ -17,28 +17,46 @@ def perform_uninstall():
     try: show_cursor()
     except Exception: pass
     print(C_WARN + "\nUninstalling AWING Auto Login..." + RST)
-    # 1. Desktop shortcut
-    try:
-        desk = os.path.join(os.environ.get("USERPROFILE", ""), "Desktop", "AWING Auto Login.lnk")
-        if os.path.exists(desk):
-            os.remove(desk)
-            print(C_OK + "  ✓ Desktop shortcut removed." + RST)
-    except Exception: pass
-    # 2. wifi.cmd
-    try:
-        wa = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WindowsApps", "wifi.cmd")
-        if os.path.exists(wa):
-            os.remove(wa)
-            print(C_OK + "  ✓ 'wifi' command removed." + RST)
-    except Exception: pass
-    # 3. Schedule install directory cleanup
-    try:
-        inst_dir = os.path.join(os.environ.get("LOCALAPPDATA", ""), "AWING-Login")
-        if os.path.exists(inst_dir):
-            cmd = f'timeout /t 1 /nobreak >nul & rmdir /s /q "{inst_dir}"'
-            subprocess.Popen(["cmd.exe", "/c", cmd], creationflags=(subprocess.CREATE_NO_WINDOW if IS_WIN else 0))
-            print(C_OK + "  ✓ App files scheduled for deletion." + RST)
-    except Exception: pass
+    if IS_WIN:
+        try:
+            desk = os.path.join(os.environ.get("USERPROFILE", ""), "Desktop", "AWING Auto Login.lnk")
+            if os.path.exists(desk):
+                os.remove(desk)
+                print(C_OK + "  ✓ Desktop shortcut removed." + RST)
+        except Exception: pass
+        try:
+            wa = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WindowsApps", "wifi.cmd")
+            if os.path.exists(wa):
+                os.remove(wa)
+                print(C_OK + "  ✓ 'wifi' command removed." + RST)
+        except Exception: pass
+        try:
+            inst_dir = os.path.join(os.environ.get("LOCALAPPDATA", ""), "AWING-Login")
+            if os.path.exists(inst_dir):
+                cmd = f'timeout /t 1 /nobreak >nul & rmdir /s /q "{inst_dir}"'
+                subprocess.Popen(["cmd.exe", "/c", cmd], creationflags=subprocess.CREATE_NO_WINDOW)
+                print(C_OK + "  ✓ App files scheduled for deletion." + RST)
+        except Exception: pass
+    else:
+        try:
+            wb = os.path.expanduser("~/.local/bin/wifi")
+            if os.path.exists(wb):
+                os.remove(wb)
+                print(C_OK + "  ✓ 'wifi' launcher removed." + RST)
+        except Exception: pass
+        try:
+            desk = os.path.expanduser("~/.local/share/applications/awing-login.desktop")
+            if os.path.exists(desk):
+                os.remove(desk)
+                print(C_OK + "  ✓ Desktop entry removed." + RST)
+        except Exception: pass
+        try:
+            inst_dir = os.path.expanduser("~/.local/share/awing-login")
+            if os.path.exists(inst_dir):
+                import shutil
+                shutil.rmtree(inst_dir, ignore_errors=True)
+                print(C_OK + "  ✓ App files removed." + RST)
+        except Exception: pass
     print(C_OK + bold("\n✓ AWING Auto Login has been uninstalled successfully.\n") + RST)
     sys.exit(0)
 

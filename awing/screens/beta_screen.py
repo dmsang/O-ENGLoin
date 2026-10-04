@@ -4,7 +4,7 @@ import time
 
 from awing import (IS_WIN, term, bold, C_TITLE, C_BORDER, C_SEL, C_OK, C_WARN,
                    C_ERR, C_DIM, C_KEY, C_VAL, C_DBG, RST, render, center_in,
-                   box_top, box_mid, box_bot, box_row, sep_row,
+                   box_top, box_mid, box_bot, box_row, sep_row, str_width,
                    read_key, is_mouse_click, mouse_row,
                    mouse_scroll_up, mouse_scroll_down,
                    save_settings)
@@ -30,7 +30,7 @@ def beta_screen(settings):
     ITEMS = [
         ("beta_enabled",   "\u26a1 Beta Features",          "master"),
         ("beta_preempt",   "\u23f1  Pre-emptive Re-login",  "preempt"),
-        ("beta_arp",       "\ud83d\udcf6  ARP MAC Bypass",  "arp"),
+        ("beta_arp",       "\u25ce  ARP MAC Bypass",  "arp"),
     ]
     # sync toggles from settings
     _beta_on[0]    = bool(settings.get("beta_enabled", False))
@@ -78,10 +78,11 @@ def beta_screen(settings):
             val = _val(fkey)
             tog = (C_OK + bold("[ ON  ]") + RST) if val else (C_DIM + "[ OFF ]" + RST)
             dim = "" if (fkey == "master" or _beta_on[0]) else C_DIM
+            pad_lbl = label + " " * max(0, 30 - str_width(label))
             if idx == sel[0]:
-                content = C_SEL + "  " + label.ljust(30) + RST + " " + tog
+                content = C_SEL + "  " + pad_lbl + RST + " " + tog
             else:
-                content = "  " + dim + label.ljust(30) + RST + " " + tog
+                content = "  " + dim + pad_lbl + RST + " " + tog
             rows[4 + idx] = " " * bx + box_row(bw, content)
 
         rows[4 + len(ITEMS)] = " " * bx + sep_row(bw)
@@ -99,7 +100,7 @@ def beta_screen(settings):
                 C_DIM + "Result: zero internet interruption during session renewal." + RST,
             ],
             "arp": [
-                C_OK + "\ud83d\udcf6 ARP MAC Bypass" + RST + C_DIM + " — spoof MAC of a bypass device." + RST,
+                C_OK + "\u25ce ARP MAC Bypass" + RST + C_DIM + " — spoof MAC of a bypass device." + RST,
                 C_DIM + "Scans subnet for always-online devices (POS, Camera, TV...)." + RST,
                 C_DIM + "If a matching device is found, spoofs its MAC so router grants" + RST,
                 C_DIM + "permanent access without the 15-min captive portal restriction." + RST,
@@ -146,7 +147,7 @@ def beta_screen(settings):
         rows = [""] * H
         bw = min(72, W - 4); bx = (W - bw) // 2
 
-        rows[1] = " " * bx + box_top(bw, " \ud83d\udcf6 ARP SCAN RESULTS ")
+        rows[1] = " " * bx + box_top(bw, " \u25ce ARP SCAN RESULTS ")
         if scan_state[0] == "scanning":
             rows[2] = " " * bx + box_row(bw, center_in(C_WARN + bold("\u29d7 Scanning... " + scan_prog[0]) + RST, bw - 2))
             rows[3] = " " * bx + sep_row(bw)

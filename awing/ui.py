@@ -1,5 +1,5 @@
 """awing/ui.py — Terminal, ANSI colours, box drawing, rendering helpers."""
-import re, sys
+import re, sys, unicodedata
 from blessed import Terminal
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -37,6 +37,10 @@ SPIN = ["\u280b","\u2819","\u2839","\u2838","\u283c","\u2834","\u2826","\u2827",
 
 # ── Screen rendering ───────────────────────────────────────────────────────────
 def strip_ansi(s): return re.sub(r"\033\[[^m]*m","",s)
+def str_width(s):
+    plain = strip_ansi(s)
+    return sum(2 if unicodedata.east_asian_width(c) in ("W", "F") else 1 for c in plain)
+
 def hide_cursor(): sys.stdout.write("\033[?25l"); sys.stdout.flush()
 def show_cursor(): sys.stdout.write("\033[?25h"); sys.stdout.flush()
 def enter_alt():   sys.stdout.write("\033[?1049h\033[2J\033[H"); sys.stdout.flush()
@@ -47,7 +51,7 @@ def render(rows: list):
     out = ["\033[?2026h", "\033[H"]
     for i, row in enumerate(rows):
         plain = strip_ansi(row)
-        pad   = W - len(plain)
+        pad   = W - str_width(row)
         out.append(row + (" "*pad if pad > 0 else ""))
         if i < len(rows)-1:
             out.append("\n")
@@ -57,13 +61,13 @@ def render(rows: list):
 
 def center_in(text, width):
     plain = strip_ansi(text)
-    pad   = max(0, width - len(plain))
+    pad   = max(0, width - str_width(text))
     return " "*(pad//2) + text
 
 def box_top(w, title=""):
     inner = w-2
     if title:
-        t = " "+title+" "; pad = inner-len(t)
+        t = " "+title+" "; pad = inner-str_width(t)
         top = "\u2500"*(pad//2)+t+"\u2500"*(pad-pad//2)
     else:
         top = "\u2500"*inner
@@ -77,19 +81,23 @@ def box_bot(w):
 
 def box_row(w, content):
     inner = w-2
-    plain = strip_ansi(content)
-    if len(plain) > inner:
-        target = inner-3; count = 0; out = []; i = 0
+    if str_width(content) > inner:
+        target = inner-3; cur_w = 0; out = []; i = 0
         while i < len(content):
             if content[i] == "\033" and i+1 < len(content) and content[i+1] == "[":
                 j = i+2
                 while j < len(content) and content[j] not in "m": j += 1
                 out.append(content[i:j+1]); i = j+1
             else:
-                if count < target: out.append(content[i]); count += 1
+                ch = content[i]
+                ch_w = 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+                if cur_w + ch_w <= target:
+                    out.append(ch)
+                    cur_w += ch_w
                 i += 1
-        content = "".join(out)+RST+"..."; plain = strip_ansi(content)
-    padded = content+" "*max(0, inner-len(plain))
+        content = "".join(out)+RST+"..."
+    sw = str_width(content)
+    padded = content+" "*max(0, inner-sw)
     return C_BORDER+"\u2502"+RST+padded+C_BORDER+"\u2502"+RST
 
 def sep_row(w):

@@ -49,7 +49,7 @@ def should_preempt(settings):
     if not (_beta_on[0] and _preempt_on[0]):
         return False
     last = _last_login_time[0]
-    if last == 0.0:
+    if not last:
         return False
     session_len = settings.get("beta_session_len", 900)   # default 15 min
     window      = preempt_window(settings)

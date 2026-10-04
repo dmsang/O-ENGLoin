@@ -16,6 +16,7 @@ DEFAULT_SETTINGS = {
     "debug"          : False,
     "beta_enabled"   : False,
     "beta_preempt"   : False,
+    "beta_arp"       : False,
 }
 SETTING_LABELS = {
     "gateway"        : "Default Gateway",
@@ -29,6 +30,7 @@ SETTING_LABELS = {
     "debug"          : "Debug Mode",
     "beta_enabled"   : "Beta Features",
     "beta_preempt"   : "Pre-emptive Re-login",
+    "beta_arp"       : "ARP MAC Bypass",
 }
 SETTING_KEYS = list(SETTING_LABELS.keys())
 

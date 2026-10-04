@@ -1,5 +1,5 @@
-from awing.beta import should_preempt
 """awing/screens/auto_login.py — Real-time auto-login screen and BG worker."""
+from awing.beta import should_preempt
 import threading, time
 from awing import (term, bold, C_TITLE, C_BORDER, C_SEL, C_OK, C_ERR, C_WARN,
                    C_DIM, C_KEY, C_VAL, C_DBG, RST, render, center_in,

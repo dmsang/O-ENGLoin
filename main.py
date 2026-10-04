@@ -32,9 +32,10 @@ def main():
     settings = load_settings()
     _notif_on[0] = bool(settings.get("notifications", False))
     _debug_on[0] = bool(settings.get("debug", False))
-    from awing.beta import _beta_on, _preempt_on
+    from awing.beta import _beta_on, _preempt_on, _arp_on
     _beta_on[0]    = bool(settings.get("beta_enabled", False))
     _preempt_on[0] = bool(settings.get("beta_preempt", False))
+    _arp_on[0]     = bool(settings.get("beta_arp", False))
 
     if IS_WIN: _get_hwnd()
 

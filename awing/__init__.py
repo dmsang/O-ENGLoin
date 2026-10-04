@@ -3,7 +3,7 @@ from .compat  import IS_WIN, IS_LINUX
 from .ui      import (term, RST, bold, C_TITLE, C_BORDER, C_SEL, C_OK, C_ERR,
                       C_WARN, C_DIM, C_KEY, C_VAL, C_DBG, LOGO, APP_VERSION,
                       GITHUB_REPO, SPIN, render, center_in, box_top, box_mid,
-                      box_bot, box_row, sep_row, strip_ansi, hide_cursor,
+                      box_bot, box_row, sep_row, strip_ansi, str_width, hide_cursor,
                       show_cursor, enter_alt, exit_alt,
                       read_key, is_mouse_click, mouse_row, mouse_col,
                       mouse_scroll_up, mouse_scroll_down)

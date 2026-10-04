@@ -53,6 +53,7 @@ mkdir -p "$INSTALL_DIR/awing/screens" "$BIN_DIR"
 FILES=(
     "main.py"
     "VERSION"
+    "uninstall.sh"
     "awing/__init__.py"
     "awing/compat.py"
     "awing/ui.py"
