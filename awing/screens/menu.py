@@ -12,6 +12,7 @@ MENU_ITEMS = [
     ("\u2b06  Check for Updates",  "update"),
     ("?  User Guide",              "help"),
     ("\u2665  Donate",             "donate"),
+    ("\u26a1  Beta Features",      "beta"),
     ("\u2699  Settings",           "settings"),
     ("✗  Uninstall",          "uninstall"),
     ("\u2715  Exit",               "quit"),

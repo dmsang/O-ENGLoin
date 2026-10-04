@@ -51,6 +51,14 @@ jobs:
           git diff --staged --quiet || git commit -m "chore: bump VERSION to ${{ steps.ver.outputs.version }}"
           git push
 
+
+      - name: Stamp version into installers
+        run: |
+          VER=${{ steps.ver.outputs.version }}
+          sed -i "s/__VER__/$VER/g" install.ps1
+          sed -i "s/__VER__/$VER/g" install.sh
+          echo "Stamped $VER into installers"
+
       - name: Package release zip
         run: |
           zip -r awing-login.zip main.py awing VERSION install.ps1 install.cmd install.sh uninstall.ps1 uninstall.cmd uninstall.sh

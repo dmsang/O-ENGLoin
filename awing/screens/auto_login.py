@@ -1,3 +1,4 @@
+from awing.beta import should_preempt
 """awing/screens/auto_login.py — Real-time auto-login screen and BG worker."""
 import threading, time
 from awing import (term, bold, C_TITLE, C_BORDER, C_SEL, C_OK, C_ERR, C_WARN,
@@ -22,6 +23,9 @@ def run_auto_login_screen(settings, bg_stop=None):
             dbg("[worker] Checking internet connection...")
             if has_internet(settings):
                 _set_status("ONLINE")
+                if should_preempt(settings):
+                    _add_log("INFO", "[PREEMPT] Session expiring — renewing early...")
+                    do_login(settings, _add_log)
                 dbg("[worker] Internet OK - next check in "+str(chk)+"s")
                 for _ in range(chk*2):
                     if local_stop.is_set(): return
@@ -147,6 +151,9 @@ def start_bg_worker(settings):
             dbg("[bg_worker] Checking connection...")
             if has_internet(settings):
                 _set_status("ONLINE")
+                if should_preempt(settings):
+                    _add_log("INFO", "[BG-PREEMPT] Renewing session before timeout...")
+                    do_login(settings, _add_log)
                 dbg("[bg_worker] Internet OK")
                 for _ in range(chk*2):
                     if _bg_stop.is_set(): return

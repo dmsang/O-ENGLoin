@@ -8,3 +8,4 @@ from .donate          import donate_screen
 from .uninstall       import perform_uninstall, uninstall_screen
 from .menu            import main_menu
 from .settings_screen import settings_screen
+from .beta_screen     import beta_screen

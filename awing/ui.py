@@ -22,7 +22,7 @@ C_KEY    = fg(180,220,255)
 C_VAL    = fg(200,230,255)
 C_DBG    = fg(180,120,255)
 
-APP_VERSION  = "1.0.6"
+APP_VERSION  = "1.0.7"
 GITHUB_REPO = "dmsang/O-ENGLoin"
 
 LOGO = [

@@ -13,7 +13,7 @@ from awing.screens import (check_wifi_popup, run_auto_login_screen,
                            start_bg_worker, stop_bg_worker, _bg_stop,
                            network_test_screen, update_screen, help_screen,
                            donate_screen, perform_uninstall, uninstall_screen,
-                           main_menu, settings_screen)
+                           main_menu, settings_screen, beta_screen)
 
 def main():
     if "--uninstall" in sys.argv:
@@ -32,6 +32,9 @@ def main():
     settings = load_settings()
     _notif_on[0] = bool(settings.get("notifications", False))
     _debug_on[0] = bool(settings.get("debug", False))
+    from awing.beta import _beta_on, _preempt_on
+    _beta_on[0]    = bool(settings.get("beta_enabled", False))
+    _preempt_on[0] = bool(settings.get("beta_preempt", False))
 
     if IS_WIN: _get_hwnd()
 
@@ -96,6 +99,9 @@ def main():
                 settings = settings_screen(settings)
                 _notif_on[0] = bool(settings.get("notifications", False))
                 _debug_on[0] = bool(settings.get("debug", False))
+
+            elif action == "beta":
+                settings = beta_screen(settings)
 
             elif action == "uninstall":
                 if uninstall_screen():

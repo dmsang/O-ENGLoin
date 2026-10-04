@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # AWING Auto Login — Linux Installer (Ubuntu, Debian, Fedora, Arch, etc.)
-# Run with: curl -sSL https://raw.githubusercontent.com/dmsang/O-ENGLoin/master/install.sh | bash
+# Run with: curl -sSL https://raw.githubusercontent.com/dmsang/O-ENGLoin/v1.0.7/install.sh | bash
 
 set -e
 
 REPO="dmsang/O-ENGLoin"
-RAW="https://raw.githubusercontent.com/$REPO/master"
+RAW="https://raw.githubusercontent.com/$REPO/v1.0.7"
 INSTALL_DIR="$HOME/.local/share/awing-login"
 BIN_DIR="$HOME/.local/bin"
 
@@ -68,6 +68,8 @@ FILES=(
     "awing/screens/update.py"
     "awing/screens/help.py"
     "awing/screens/donate.py"
+    "awing/beta.py"
+    "awing/screens/beta_screen.py"
     "awing/screens/uninstall.py"
     "awing/screens/menu.py"
     "awing/screens/settings_screen.py"

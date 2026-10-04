@@ -14,6 +14,8 @@ DEFAULT_SETTINGS = {
     "required_ssid"  : "INET - Free WiFi",
     "notifications"  : False,
     "debug"          : False,
+    "beta_enabled"   : False,
+    "beta_preempt"   : False,
 }
 SETTING_LABELS = {
     "gateway"        : "Default Gateway",
@@ -25,6 +27,8 @@ SETTING_LABELS = {
     "required_ssid"  : "Required WiFi SSID",
     "notifications"  : "Notifications (tray)",
     "debug"          : "Debug Mode",
+    "beta_enabled"   : "Beta Features",
+    "beta_preempt"   : "Pre-emptive Re-login",
 }
 SETTING_KEYS = list(SETTING_LABELS.keys())
 
