@@ -300,11 +300,12 @@ def stop_tray():
         except Exception: pass
 
 # ── Shared log + status ───────────────────────────────────────────────────────
-MAX_LOGS     = 500
-_logs        = []
-_log_lock    = threading.Lock()
-_status      = ["OFFLINE"]
-_status_lock = threading.Lock()
+MAX_LOGS         = 500
+_logs            = []
+_log_lock        = threading.Lock()
+_status          = ["OFFLINE"]
+_status_lock     = threading.Lock()
+_last_login_time = [None]   # float timestamp of last successful login
 
 def _add_log(level, msg):
     ts = time.strftime("%H:%M:%S")
@@ -325,6 +326,23 @@ def _set_status(s, notify=True):
 
 def _get_status():
     with _status_lock: return _status[0]
+
+def _last_login_str():
+    """Return a short human-readable string for how long ago last login was."""
+    t = _last_login_time[0]
+    if t is None:
+        return ""
+    secs = int(time.time() - t)
+    if secs < 60:
+        return C_DIM + " | Last login: " + str(secs) + "s ago" + RST
+    mins = secs // 60
+    if mins < 60:
+        return C_DIM + " | Last login: " + str(mins) + "m ago" + RST
+    hours = mins // 60
+    rem   = mins % 60
+    if rem:
+        return C_DIM + " | Last login: " + str(hours) + "h " + str(rem) + "m ago" + RST
+    return C_DIM + " | Last login: " + str(hours) + "h ago" + RST
 
 # ── Network ───────────────────────────────────────────────────────────────────
 def create_session():
@@ -414,6 +432,7 @@ def do_login(settings, log_cb):
         log_cb("INFO","Checking internet...")
         time.sleep(2)
         if has_internet(settings):
+            _last_login_time[0] = time.time()
             log_cb("OK","Login successful! Internet OK"); return True
         log_cb("WARN","Login done but internet not yet active"); return False
 
@@ -510,21 +529,22 @@ def run_auto_login_screen(settings, bg_stop=None):
         chk=settings["check_interval"]; ret=settings["retry_interval"]
         while not local_stop.is_set():
             _set_status("CHECKING",notify=False)
-            _add_log("INFO","Checking internet connection...")
+            dbg("[worker] Checking internet connection...")
             if has_internet(settings):
                 _set_status("ONLINE")
-                _add_log("OK","Internet OK - next check in "+str(chk)+"s")
+                dbg("[worker] Internet OK - next check in "+str(chk)+"s")
                 for _ in range(chk*2):
                     if local_stop.is_set(): return
                     time.sleep(0.5)
             else:
                 _set_status("OFFLINE")
-                _add_log("WARN","No internet, attempting login...")
+                _add_log("WARN","Internet lost - attempting login...")
                 _set_status("LOGGING IN",notify=False)
                 ok=do_login(settings,_add_log)
                 if ok:
+                    _last_login_time[0] = time.time()
                     _set_status("ONLINE")
-                    _add_log("OK","Connected! Next check in "+str(chk)+"s")
+                    _add_log("OK","Reconnected! Next check in "+str(chk)+"s")
                     for _ in range(chk*2):
                         if local_stop.is_set(): return
                         time.sleep(0.5)
@@ -559,7 +579,8 @@ def run_auto_login_screen(settings, bg_stop=None):
         rows[1]=box_row(W,center_in(C_TITLE+bold(" AWING Auto Login v"+APP_VERSION+" ")+dbg_tag,W-2))
         info=(" GW:"+C_VAL+gw+RST+" WiFi:"+sc2+ssid+RST+
               " Status:"+sc+bold(st)+RST+sc+" "+spin+RST+
-              C_DIM+" chk="+str(chk)+"s ret="+str(ret)+"s"+RST)
+              C_DIM+" chk="+str(chk)+"s ret="+str(ret)+"s"+RST+
+              _last_login_str())
         rows[2]=box_row(W,info)
         rows[3]=sep_row(W)
 
@@ -633,19 +654,20 @@ def start_bg_worker(settings):
         chk=settings["check_interval"]; ret=settings["retry_interval"]
         while not _bg_stop.is_set():
             _set_status("CHECKING",notify=False)
-            _add_log("INFO","[BG] Checking connection...")
+            dbg("[bg_worker] Checking connection...")
             if has_internet(settings):
                 _set_status("ONLINE")
-                _add_log("OK","[BG] Internet OK")
+                dbg("[bg_worker] Internet OK")
                 for _ in range(chk*2):
                     if _bg_stop.is_set(): return
                     time.sleep(0.5)
             else:
                 _set_status("OFFLINE")
-                _add_log("WARN","[BG] No internet, logging in...")
+                _add_log("WARN","[BG] Internet lost - logging in...")
                 _set_status("LOGGING IN",notify=False)
                 ok=do_login(settings,_add_log)
                 if ok:
+                    _last_login_time[0] = time.time()
                     _set_status("ONLINE")
                     _add_log("OK","[BG] Login successful!")
                     for _ in range(chk*2):
