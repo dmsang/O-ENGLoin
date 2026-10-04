@@ -41,13 +41,39 @@ if(-not $pyOK){
     Write-Host "  [1/5] Python OK ($ver)" -ForegroundColor Green
 }
 
-# 2. Download
+# 2. Download app files
 Write-Host "  [2/5] Downloading app..." -ForegroundColor Cyan
-New-Item -ItemType Directory -Force -Path $INST | Out-Null
-Invoke-WebRequest -Uri "$RAW/main.py" -OutFile "$INST\main.py" -UseBasicParsing
-Invoke-WebRequest -Uri "$RAW/VERSION" -OutFile "$INST\VERSION" -UseBasicParsing
-Invoke-WebRequest -Uri "$RAW/uninstall.ps1" -OutFile "$INST\uninstall.ps1" -UseBasicParsing
-Invoke-WebRequest -Uri "$RAW/uninstall.cmd" -OutFile "$INST\uninstall.cmd" -UseBasicParsing
+New-Item -ItemType Directory -Force -Path "$INST\awing\screens" | Out-Null
+$FILES = @(
+    "main.py",
+    "VERSION",
+    "uninstall.ps1",
+    "uninstall.cmd",
+    "awing\__init__.py",
+    "awing\compat.py",
+    "awing\ui.py",
+    "awing\settings.py",
+    "awing\state.py",
+    "awing\wifi.py",
+    "awing\network.py",
+    "awing\tray.py",
+    "awing\screens\__init__.py",
+    "awing\screens\wifi_popup.py",
+    "awing\screens\auto_login.py",
+    "awing\screens\nettest.py",
+    "awing\screens\update.py",
+    "awing\screens\help.py",
+    "awing\screens\uninstall.py",
+    "awing\screens\menu.py",
+    "awing\screens\settings_screen.py",
+)
+foreach($f in $FILES){
+    $target = Join-Path $INST $f
+    $dir = Split-Path $target -Parent
+    if(-not (Test-Path $dir)){ New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+        $url = "$RAW/" + $f.Replace("\\", "/")
+    Invoke-WebRequest -Uri $url -OutFile $target -UseBasicParsing
+}
 Write-Host "        Done." -ForegroundColor Green
 
 # 3. Deps
@@ -72,7 +98,7 @@ Write-Host "        Done." -ForegroundColor Green
 Write-Host "  [5/5] Registering 'wifi' command..." -ForegroundColor Cyan
 $wa="$env:LOCALAPPDATA\Microsoft\WindowsApps"
 $wf="$wa\wifi.cmd"
-New-Item -ItemType Directory -Force -Path $wa | Out-Null
+New-Item -ItemType Directory -Force -Path "$INST\awing\screens" | Out-Null
 Set-Content -Path $wf -Encoding ASCII -Value ("@echo off`r`n`"$pyExe`" `"$INST\main.py`" %*")
 Write-Host "        Done. Now type 'wifi' in any terminal!" -ForegroundColor Green
 

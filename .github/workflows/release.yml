@@ -43,10 +43,14 @@ jobs:
           echo "${{ steps.ver.outputs.version }}" > VERSION
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          sed -i -E 's/APP_VERSION[[:space:]]*=[[:space:]]*"[^"]+"/APP_VERSION  = "${{ steps.ver.outputs.version }}"/' main.py
-          git add VERSION main.py
+          sed -i -E 's/APP_VERSION[[:space:]]*=[[:space:]]*"[^"]+"/APP_VERSION  = "${{ steps.ver.outputs.version }}"/' awing/ui.py
+          git add VERSION awing/ui.py
           git diff --staged --quiet || git commit -m "chore: bump VERSION to ${{ steps.ver.outputs.version }}"
           git push
+
+      - name: Package release zip
+        run: |
+          zip -r awing-login.zip main.py awing VERSION install.ps1 install.cmd install.sh uninstall.ps1 uninstall.cmd uninstall.sh
 
       - name: Create tag
         run: |
@@ -64,9 +68,11 @@ jobs:
           generate_release_notes: true
           files: |
             main.py
+            awing-login.zip
             install.ps1
             install.cmd
+            install.sh
             uninstall.ps1
             uninstall.cmd
+            uninstall.sh
             VERSION
-
