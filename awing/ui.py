@@ -1,4 +1,4 @@
-﻿"""awing/ui.py — Terminal, ANSI colours, box drawing, rendering helpers."""
+"""awing/ui.py — Terminal, ANSI colours, box drawing, rendering helpers."""
 import re, sys
 from blessed import Terminal
 
@@ -22,7 +22,7 @@ C_KEY    = fg(180,220,255)
 C_VAL    = fg(200,230,255)
 C_DBG    = fg(180,120,255)
 
-APP_VERSION  = "1.0.5"
+APP_VERSION  = "1.0.6"
 GITHUB_REPO = "dmsang/O-ENGLoin"
 
 LOGO = [

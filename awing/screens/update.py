@@ -1,4 +1,4 @@
-﻿"""awing/screens/update.py — GitHub releases check & auto-updater."""
+"""awing/screens/update.py — GitHub releases check & auto-updater."""
 import json, os, sys, threading, urllib.request, zipfile
 from awing import (term, bold, C_TITLE, C_BORDER, C_SEL, C_OK, C_ERR, C_WARN,
                    C_DIM, C_KEY, RST, render, center_in, box_top, box_mid,

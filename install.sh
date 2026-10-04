@@ -67,6 +67,7 @@ FILES=(
     "awing/screens/nettest.py"
     "awing/screens/update.py"
     "awing/screens/help.py"
+    "awing/screens/donate.py"
     "awing/screens/uninstall.py"
     "awing/screens/menu.py"
     "awing/screens/settings_screen.py"

@@ -1,4 +1,4 @@
-﻿"""awing — AWING Auto Login package."""
+"""awing — AWING Auto Login package."""
 from .compat  import IS_WIN, IS_LINUX
 from .ui      import (term, RST, bold, C_TITLE, C_BORDER, C_SEL, C_OK, C_ERR,
                       C_WARN, C_DIM, C_KEY, C_VAL, C_DBG, LOGO, APP_VERSION,
@@ -21,6 +21,10 @@ from .compat  import hide_console, show_console, _get_hwnd
 
 # Shared debug flag — modules read this via  from awing import _debug_on
 _debug_on = [False]
+
+def dbg(msg):
+    if _debug_on[0]:
+        _add_log("DBG", msg)
 
 STATUS_COLORS = {"ONLINE": C_OK, "OFFLINE": C_ERR, "LOGGING IN": C_WARN, "CHECKING": C_DIM}
 LOG_COLORS    = {"OK": C_OK, "ERR": C_ERR, "WARN": C_WARN, "INFO": C_DIM, "DBG": C_DBG}

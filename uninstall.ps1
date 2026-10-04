@@ -1,4 +1,4 @@
-﻿# AWING Auto Login - Uninstaller
+# AWING Auto Login - Uninstaller
 # Usage: irm https://raw.githubusercontent.com/dmsang/O-ENGLoin/master/uninstall.ps1 | iex
 
 $ErrorActionPreference = "SilentlyContinue"

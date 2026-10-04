@@ -1,4 +1,4 @@
-﻿"""awing/tray.py — System tray (pystray + Pillow). Gracefully no-ops if unavailable."""
+"""awing/tray.py — System tray (pystray + Pillow). Gracefully no-ops if unavailable."""
 import threading
 
 try:

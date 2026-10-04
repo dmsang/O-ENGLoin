@@ -4,7 +4,7 @@ from awing import (term, bold, C_TITLE, C_BORDER, C_SEL, C_OK, C_ERR, C_WARN,
                    C_DIM, C_KEY, RST, render, center_in, box_top, box_mid,
                    box_bot, box_row, read_key, is_mouse_click, mouse_row,
                    mouse_col, get_current_ssid, get_available_ssids,
-                   connect_to_ssid)
+                   connect_to_ssid, dbg)
 
 def check_wifi_popup(settings):
     required = settings.get("required_ssid","").strip()

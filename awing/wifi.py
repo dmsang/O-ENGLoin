@@ -1,4 +1,4 @@
-﻿"""awing/wifi.py — Cross-platform WiFi SSID detection and connection."""
+"""awing/wifi.py — Cross-platform WiFi SSID detection and connection."""
 import subprocess, time
 from .compat import IS_WIN, NO_WIN
 

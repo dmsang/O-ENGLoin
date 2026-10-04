@@ -1,4 +1,4 @@
-﻿"""awing/network.py — HTTP session, captive portal login, ping, speedtest, local IP."""
+"""awing/network.py — HTTP session, captive portal login, ping, speedtest, local IP."""
 import re, socket, subprocess, time, traceback
 
 import requests

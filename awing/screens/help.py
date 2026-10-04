@@ -20,7 +20,9 @@ def help_screen():
         "  " + C_KEY + "⎔  Network Test" + RST + "      Speed test, target server, ping, LAN & WAN IP.",
         "  " + C_KEY + "⬆  Check for Updates" + RST + " Checks GitHub Releases for new versions.",
         "  " + C_KEY + "?  User Guide" + RST + "         This help screen.",
+        "  " + C_KEY + "♥  Donate" + RST + "             VietQR code to support the developer.",
         "  " + C_KEY + "⚙  Settings" + RST + "           Configure gateway, intervals, debug, etc.",
+        "  " + C_KEY + "✗  Uninstall" + RST + "          Completely remove app and settings.",
         "  " + C_KEY + "✕  Exit" + RST + "               Quit the application.",
         "",
         C_TITLE + bold("[3] SYSTEM TRAY (BACKGROUND MODE)") + RST,
@@ -41,8 +43,9 @@ def help_screen():
         "  " + C_KEY + "↑ / ↓" + RST + "           Move selection / scroll logs & guide",
         "  " + C_KEY + "Enter" + RST + "           Select / Confirm / Toggle ON-OFF",
         "  " + C_KEY + "Space / ← →" + RST + "     Toggle ON/OFF on boolean settings directly",
-        "  " + C_KEY + "End / Home" + RST + "      Jump to newest / oldest line in logs & guide",
+        "  " + C_KEY + "Home / End" + RST + "      Jump to oldest / newest line in logs & guide",
         "  " + C_KEY + "Q / Esc" + RST + "         Back to previous screen / Exit",
+        "  " + C_KEY + "C" + RST + "               Copy account number on Donate screen",
         "  " + C_KEY + "X" + RST + "               Stop background worker while viewing logs",
         "",
         C_TITLE + bold("[6] SETTINGS EXPLAINED") + RST,
@@ -54,7 +57,7 @@ def help_screen():
         "  • " + C_VAL + "Debug Mode" + RST + "           Detailed logs (HTTP, tokens, MAC, etc.)",
         "",
         C_TITLE + bold("[7] ONE-LINE INSTALL COMMAND") + RST,
-        "  " + C_DIM + "irm https://raw.githubusercontent.com/dmsang/O-ENGLoin/master/install.ps1 | iex" + RST,
+        "  " + C_DIM + "irm https://raw.githubusercontent.com/dmsang/O-ENGLoin/HEAD/install.ps1 | iex" + RST,
     ]
     def build():
         W = term.width or 80; H = term.height or 24

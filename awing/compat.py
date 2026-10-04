@@ -1,4 +1,4 @@
-﻿"""awing/compat.py — Platform detection and Windows-only console API."""
+"""awing/compat.py — Platform detection and Windows-only console API."""
 import sys
 
 IS_WIN   = sys.platform == "win32"
@@ -9,6 +9,10 @@ if IS_WIN:
     _k32 = _ct.windll.kernel32
     _u32 = _ct.windll.user32
     _k32.SetConsoleMode(_k32.GetStdHandle(-11), 7)
+else:
+    _ct = None
+    _k32 = None
+    _u32 = None
 
 _HWND = [0]
 

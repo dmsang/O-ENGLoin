@@ -1,4 +1,4 @@
-﻿"""
+"""
 AWING Auto Login — Keep your internet alive on captive portal Wi-Fi networks.
 Entry point: dispatches to modular components in awing/ package.
 """
@@ -12,8 +12,8 @@ from awing import (IS_WIN, term, bold, C_TITLE, C_OK, C_WARN, C_DIM, RST,
 from awing.screens import (check_wifi_popup, run_auto_login_screen,
                            start_bg_worker, stop_bg_worker, _bg_stop,
                            network_test_screen, update_screen, help_screen,
-                           perform_uninstall, uninstall_screen, main_menu,
-                           settings_screen)
+                           donate_screen, perform_uninstall, uninstall_screen,
+                           main_menu, settings_screen)
 
 def main():
     if "--uninstall" in sys.argv:
@@ -88,6 +88,9 @@ def main():
 
             elif action == "help":
                 help_screen()
+
+            elif action == "donate":
+                donate_screen()
 
             elif action == "settings":
                 settings = settings_screen(settings)

@@ -1,4 +1,4 @@
-﻿"""awing/state.py — Shared mutable state: logs, status, last login time."""
+"""awing/state.py — Shared mutable state: logs, status, last login time."""
 import threading, time
 from .ui import C_DIM, RST
 from .tray import tray_update, notify as tray_notify

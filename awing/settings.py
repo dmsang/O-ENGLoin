@@ -1,4 +1,4 @@
-﻿"""awing/settings.py — Load/save settings and constant definitions."""
+"""awing/settings.py — Load/save settings and constant definitions."""
 import os, json
 
 _DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

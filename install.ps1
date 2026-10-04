@@ -1,4 +1,4 @@
-﻿# AWING Auto Login - Installer
+# AWING Auto Login - Installer
 # irm https://raw.githubusercontent.com/dmsang/O-ENGLoin/master/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
@@ -64,6 +64,7 @@ $FILES = @(
     "awing/screens/nettest.py",
     "awing/screens/update.py",
     "awing/screens/help.py",
+    "awing/screens/donate.py",
     "awing/screens/uninstall.py",
     "awing/screens/menu.py",
     "awing/screens/settings_screen.py"
