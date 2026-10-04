@@ -1,5 +1,5 @@
 # AWING Auto Login - Uninstaller
-# Usage: irm https://raw.githubusercontent.com/dmsang/O-ENGLoin/master/uninstall.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/dmsang/O-ENGLoin/v1.0.7/uninstall.ps1 | iex
 
 $ErrorActionPreference = "SilentlyContinue"
 
@@ -10,40 +10,76 @@ Write-Host "  ================================" -ForegroundColor Cyan
 Write-Host ""
 
 $INST = "$env:LOCALAPPDATA\AWING-Login"
-$DESKTOP = [Environment]::GetFolderPath('Desktop')
-$SHORTCUT = "$DESKTOP\AWING Auto Login.lnk"
-$WIFI_CMD = "$env:LOCALAPPDATA\Microsoft\WindowsApps\wifi.cmd"
 
 # 1. Kill any running instances
 Write-Host "  [1/4] Stopping running instances..." -ForegroundColor Cyan
-Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*AWING-Login*" } | ForEach-Object {
+Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*AWING-Login*" -or $_.CommandLine -like "*awing*" } | ForEach-Object {
     Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
 }
-Start-Sleep -Milliseconds 500
+Start-Sleep -Milliseconds 800
 
-# 2. Remove desktop shortcut
-Write-Host "  [2/4] Removing desktop shortcut..." -ForegroundColor Cyan
-if (Test-Path $SHORTCUT) {
-    Remove-Item -Path $SHORTCUT -Force
-    Write-Host "        Shortcut removed." -ForegroundColor Green
-} else {
-    Write-Host "        No shortcut found." -ForegroundColor DarkGray
+# 2. Remove desktop shortcuts and batch files
+Write-Host "  [2/4] Removing desktop shortcuts and batch files..." -ForegroundColor Cyan
+
+$desktopDirs = @(
+    [Environment]::GetFolderPath('Desktop'),
+    "$env:USERPROFILE\Desktop",
+    "$env:USERPROFILE\OneDrive\Desktop",
+    "$env:PUBLIC\Desktop",
+    [Environment]::GetFolderPath('CommonDesktopDirectory')
+) | Select-Object -Unique | Where-Object { $_ -and (Test-Path $_) }
+
+$filePatterns = @(
+    "AWING Auto Login.lnk",
+    "AWING Auto Login.bat",
+    "AWING-Login.lnk",
+    "AWING-Login.bat",
+    "wifi.lnk",
+    "wifi.bat",
+    "wifi.cmd"
+)
+
+$removedCount = 0
+foreach ($dir in $desktopDirs) {
+    foreach ($pat in $filePatterns) {
+        $p = Join-Path $dir $pat
+        if (Test-Path $p) {
+            Remove-Item -Path $p -Force -ErrorAction SilentlyContinue
+            Write-Host "        Removed: $p" -ForegroundColor Green
+            $removedCount++
+        }
+    }
+}
+if ($removedCount -eq 0) {
+    Write-Host "        No desktop shortcuts or batch files found." -ForegroundColor DarkGray
 }
 
 # 3. Remove 'wifi' command
 Write-Host "  [3/4] Removing 'wifi' command..." -ForegroundColor Cyan
-if (Test-Path $WIFI_CMD) {
-    Remove-Item -Path $WIFI_CMD -Force
-    Write-Host "        'wifi' command removed." -ForegroundColor Green
-} else {
-    Write-Host "        'wifi' command not found." -ForegroundColor DarkGray
+$waFiles = @(
+    "$env:LOCALAPPDATA\Microsoft\WindowsApps\wifi.cmd",
+    "$env:LOCALAPPDATA\Microsoft\WindowsApps\wifi.bat"
+)
+foreach ($wf in $waFiles) {
+    if (Test-Path $wf) {
+        Remove-Item -Path $wf -Force -ErrorAction SilentlyContinue
+        Write-Host "        Command removed: $wf" -ForegroundColor Green
+    }
 }
 
 # 4. Remove install directory
 Write-Host "  [4/4] Removing app files..." -ForegroundColor Cyan
 if (Test-Path $INST) {
-    Remove-Item -Path $INST -Recurse -Force
-    Write-Host "        App directory removed." -ForegroundColor Green
+    Remove-Item -Path $INST -Recurse -Force -ErrorAction SilentlyContinue
+    if (Test-Path $INST) {
+        Start-Sleep -Seconds 1
+        Remove-Item -Path $INST -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    if (-not (Test-Path $INST)) {
+        Write-Host "        App directory removed." -ForegroundColor Green
+    } else {
+        Write-Host "        Note: Some files may be cleaned up on next reboot." -ForegroundColor Yellow
+    }
 } else {
     Write-Host "        App directory not found." -ForegroundColor DarkGray
 }

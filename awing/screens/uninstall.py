@@ -7,6 +7,36 @@ from awing import (term, bold, C_TITLE, C_BORDER, C_SEL, C_OK, C_ERR, C_WARN,
 from awing.compat import IS_WIN
 from .auto_login import stop_bg_worker
 
+
+def _get_all_desktop_dirs():
+    dirs = set()
+    up = os.environ.get("USERPROFILE", "")
+    if up:
+        dirs.add(os.path.join(up, "Desktop"))
+        dirs.add(os.path.join(up, "OneDrive", "Desktop"))
+    pub = os.environ.get("PUBLIC", "")
+    if pub:
+        dirs.add(os.path.join(pub, "Desktop"))
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders") as k:
+            d, _ = winreg.QueryValueEx(k, "Desktop")
+            expanded = os.path.expandvars(d)
+            if os.path.isdir(expanded):
+                dirs.add(expanded)
+    except Exception:
+        pass
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders") as k:
+            d, _ = winreg.QueryValueEx(k, "Desktop")
+            if os.path.isdir(d):
+                dirs.add(d)
+    except Exception:
+        pass
+    return [d for d in dirs if os.path.isdir(d)]
+
+
 def perform_uninstall():
     try: stop_bg_worker()
     except Exception: pass
@@ -18,25 +48,64 @@ def perform_uninstall():
     except Exception: pass
     print(C_WARN + "\nUninstalling AWING Auto Login..." + RST)
     if IS_WIN:
-        try:
-            desk = os.path.join(os.environ.get("USERPROFILE", ""), "Desktop", "AWING Auto Login.lnk")
-            if os.path.exists(desk):
-                os.remove(desk)
-                print(C_OK + "  ✓ Desktop shortcut removed." + RST)
-        except Exception: pass
-        try:
-            wa = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WindowsApps", "wifi.cmd")
-            if os.path.exists(wa):
-                os.remove(wa)
-                print(C_OK + "  ✓ 'wifi' command removed." + RST)
-        except Exception: pass
-        try:
-            inst_dir = os.path.join(os.environ.get("LOCALAPPDATA", ""), "AWING-Login")
-            if os.path.exists(inst_dir):
-                cmd = f'timeout /t 1 /nobreak >nul & rmdir /s /q "{inst_dir}"'
+        # 1. Remove desktop shortcuts and batch files from all possible desktop folders
+        target_names = [
+            "AWING Auto Login.lnk",
+            "AWING Auto Login.bat",
+            "AWING-Login.lnk",
+            "AWING-Login.bat",
+            "wifi.lnk",
+            "wifi.bat",
+            "wifi.cmd",
+        ]
+        desktop_dirs = _get_all_desktop_dirs()
+        for d in desktop_dirs:
+            for name in target_names:
+                p = os.path.join(d, name)
+                if os.path.exists(p):
+                    try:
+                        os.remove(p)
+                        print(C_OK + f"  ✓ Removed desktop file: {name}" + RST)
+                    except Exception:
+                        pass
+
+        # 2. Remove 'wifi' command from WindowsApps
+        wa_dir = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WindowsApps")
+        for cmd_name in ["wifi.cmd", "wifi.bat"]:
+            wp = os.path.join(wa_dir, cmd_name)
+            if os.path.exists(wp):
+                try:
+                    os.remove(wp)
+                    print(C_OK + f"  ✓ Removed '{cmd_name}' command." + RST)
+                except Exception:
+                    pass
+
+        # 3. Remove application installation folder
+        inst_dir = os.path.join(os.environ.get("LOCALAPPDATA", ""), "AWING-Login")
+        if os.path.exists(inst_dir):
+            # Delete non-locked files immediately (like the launcher bat)
+            for fname in ["AWING-Login.bat", "settings.json", "install.cmd", "uninstall.cmd", "main.py.bak"]:
+                fpath = os.path.join(inst_dir, fname)
+                if os.path.exists(fpath):
+                    try: os.remove(fpath)
+                    except Exception: pass
+
+            # Detached PowerShell to wait for parent process to exit and delete inst_dir
+            my_pid = os.getpid()
+            clean_cmd = (
+                f"Wait-Process -Id {my_pid} -Timeout 10 -ErrorAction SilentlyContinue; "
+                f"Start-Sleep -Milliseconds 600; "
+                f"Remove-Item -LiteralPath '{inst_dir}' -Recurse -Force -ErrorAction SilentlyContinue"
+            )
+            try:
+                subprocess.Popen(
+                    ["powershell.exe", "-NoProfile", "-WindowStyle", "Hidden", "-Command", clean_cmd],
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                print(C_OK + "  ✓ App files scheduled for permanent deletion." + RST)
+            except Exception:
+                cmd = f'ping 127.0.0.1 -n 3 >nul & rmdir /s /q "{inst_dir}"'
                 subprocess.Popen(["cmd.exe", "/c", cmd], creationflags=subprocess.CREATE_NO_WINDOW)
-                print(C_OK + "  ✓ App files scheduled for deletion." + RST)
-        except Exception: pass
     else:
         try:
             wb = os.path.expanduser("~/.local/bin/wifi")
@@ -59,6 +128,7 @@ def perform_uninstall():
         except Exception: pass
     print(C_OK + bold("\n✓ AWING Auto Login has been uninstalled successfully.\n") + RST)
     sys.exit(0)
+
 
 def uninstall_screen():
     sel = [1]  # 0=Yes Uninstall, 1=Cancel
