@@ -13,6 +13,9 @@ on:
         default: "false"
         type: choice
         options: ["false", "true"]
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   release:
