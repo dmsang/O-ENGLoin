@@ -447,6 +447,34 @@ def do_login(settings, log_cb):
 def read_key():
     with term.cbreak(): return term.inkey(timeout=None)
 
+# ── Mouse helpers ─────────────────────────────────────────────────────────────
+def is_mouse_click(key):
+    """Return True if keystroke is a left-button mouse click (not drag/motion)."""
+    if key.code != term.KEY_MOUSE:
+        return False
+    name = key.mouse_event_name()
+    return name is not None and "LEFT" in name and "RELEASED" not in name and "MOTION" not in name
+
+def mouse_row(key):
+    """Return 0-indexed row of mouse event."""
+    yx = key.mouse_yx
+    return yx[0] if yx else -1
+
+def mouse_col(key):
+    """Return 0-indexed column of mouse event."""
+    yx = key.mouse_yx
+    return yx[1] if yx else -1
+
+def mouse_scroll_up(key):
+    """Return True if mouse wheel scrolled up."""
+    name = key.mouse_event_name() if key.code == term.KEY_MOUSE else None
+    return name is not None and "SCROLL_UP" in name
+
+def mouse_scroll_down(key):
+    """Return True if mouse wheel scrolled down."""
+    name = key.mouse_event_name() if key.code == term.KEY_MOUSE else None
+    return name is not None and "SCROLL_DOWN" in name
+
 # ── WiFi popup ────────────────────────────────────────────────────────────────
 def check_wifi_popup(settings):
     required = settings.get("required_ssid","").strip()
@@ -495,11 +523,31 @@ def check_wifi_popup(settings):
         render(build())
         key=read_key(); ks=str(key).upper()
         n_btn=3 if has_net else 2
+
+        # Mouse: click on button row (by+9)
+        activate = False
+        if is_mouse_click(key):
+            W=term.width or 80; H=term.height or 24
+            bw=min(62,W-4); bh=14; bx=(W-bw)//2; by=(H-bh)//2
+            if mouse_row(key) == by+9:
+                # Compute button x-positions to determine which was clicked
+                btn_ok=" Connect "; btn_sk=" Skip "; btn_ex=" Exit "
+                gap=2
+                total_b=len(btn_ok)+len(btn_sk)+len(btn_ex)+gap*2
+                bb=bx+1+(bw-total_b)//2   # left edge of first button (inside box)
+                mc=mouse_col(key)
+                x0=bb; x1=x0+len(btn_ok)
+                x2=x1+gap; x3=x2+len(btn_sk)
+                x4=x3+gap; x5=x4+len(btn_ex)
+                if x0 <= mc < x1 and has_net: sel[0]=0; activate=True
+                elif x2 <= mc < x3: sel[0]=1; activate=True
+                elif x4 <= mc < x5: sel[0]=2; activate=True
+
         if key.code in (term.KEY_LEFT,term.KEY_TAB,term.KEY_BTAB):
             sel[0]=(sel[0]-1)%n_btn
         elif key.code==term.KEY_RIGHT:
             sel[0]=(sel[0]+1)%n_btn
-        elif key.code==term.KEY_ENTER or ks in ("\n","\r"):
+        elif activate or key.code==term.KEY_ENTER or ks in ("\n","\r"):
             if sel[0]==2: return False        # Exit
             if sel[0]==1: return True          # Skip - enter app without correct wifi
             if not has_net: msg[0]="WiFi not available!"; continue
@@ -627,9 +675,9 @@ def run_auto_login_screen(settings, bg_stop=None):
                 ks=str(key).upper()
                 if key.code==term.KEY_ESCAPE or ks=="Q": break
                 elif ks=="X" and bg_stop is not None: bg_stop.set(); break
-                elif key.code==term.KEY_UP:
+                elif key.code==term.KEY_UP or mouse_scroll_up(key):
                     with _log_lock: scroll[0]=max(0,scroll[0]-1)
-                elif key.code==term.KEY_DOWN:
+                elif key.code==term.KEY_DOWN or mouse_scroll_down(key):
                     with _log_lock:
                         _lh=(term.height or 24)-7
                         total=len(_logs)
@@ -941,7 +989,11 @@ def network_test_screen(settings):
                 if ks == "Q" or key.code == term.KEY_ESCAPE:
                     stop_ev.set()
                     break
-                elif key.code == term.KEY_ENTER or ks in ("\n", "\r"):
+                start_test = (key.code == term.KEY_ENTER or ks in ("\n", "\r"))
+                # Mouse click anywhere inside the box starts/cancels
+                if is_mouse_click(key) and not start_test:
+                    start_test = True
+                if start_test:
                     if phase[0] in ("idle", "done", "error"):
                         stop_ev.clear()
                         result[0] = {"local_ip": get_local_ip()}
@@ -949,6 +1001,9 @@ def network_test_screen(settings):
                         phase[0] = "running"
                         test_thread[0] = threading.Thread(target=do_test, daemon=True)
                         test_thread[0].start()
+                    elif phase[0] == "running" and is_mouse_click(key):
+                        # Right/middle-click or second click cancels
+                        stop_ev.set()
     finally:
         stop_ev.set()
 
@@ -1100,6 +1155,28 @@ def update_screen():
         if not key: continue
         ks = str(key).upper()
         if st == "downloading": continue
+
+        # Mouse click: check if hitting button row (by+7)
+        if is_mouse_click(key) and st != "downloading":
+            W2 = term.width or 80; H2 = term.height or 24
+            bw2 = min(62, W2-4); bx2 = (W2-bw2)//2; by2 = (H2-14)//2
+            if mouse_row(key) == by2+7:
+                if st == "available":
+                    btn_up = " Update Now "; btn_cn = "  Cancel  "; gap2 = 2
+                    total_w2 = len(btn_up)+len(btn_cn)+gap2
+                    bb2 = bx2+1+(bw2-total_w2)//2
+                    mc2 = mouse_col(key)
+                    if bb2 <= mc2 < bb2+len(btn_up): sel[0]=0
+                    elif bb2+len(btn_up)+gap2 <= mc2 < bb2+total_w2: sel[0]=1
+                    # activate immediately
+                    if sel[0] == 0:
+                        threading.Thread(target=do_download, daemon=True).start()
+                    else:
+                        return
+                elif st in ("up_to_date", "done", "error"):
+                    return  # OK button
+            continue
+
         if st == "available":
             if key.code in (term.KEY_LEFT, term.KEY_RIGHT):
                 sel[0] = 1 - sel[0]
@@ -1194,9 +1271,9 @@ def help_screen():
         key = read_key()
         H = term.height or 24; content_h = H - 8; total = len(HELP_LINES)
         max_scroll = max(0, total - content_h)
-        if key.code == term.KEY_UP:
+        if key.code == term.KEY_UP or mouse_scroll_up(key):
             scroll[0] = max(0, scroll[0] - 1)
-        elif key.code == term.KEY_DOWN:
+        elif key.code == term.KEY_DOWN or mouse_scroll_down(key):
             scroll[0] = min(max_scroll, scroll[0] + 1)
         elif key.code == term.KEY_HOME:
             scroll[0] = 0
@@ -1273,9 +1350,19 @@ def uninstall_screen():
         key = read_key()
         if not key: continue
         ks = str(key).upper()
+        activate_u = False
+        if is_mouse_click(key):
+            W3=term.width or 80; H3=term.height or 24
+            bw3=min(62,W3-4); bx3=(W3-bw3)//2; by3=(H3-14)//2
+            if mouse_row(key) == by3+8:
+                b_yes=" Yes, Uninstall "; b_no="   Cancel   "; gap3=4
+                total_u=len(b_yes)+len(b_no)+gap3; bb3=bx3+1+(bw3-total_u)//2
+                mc3=mouse_col(key)
+                if bb3 <= mc3 < bb3+len(b_yes): sel[0]=0; activate_u=True
+                elif bb3+len(b_yes)+gap3 <= mc3 < bb3+total_u: sel[0]=1; activate_u=True
         if key.code in (term.KEY_LEFT, term.KEY_RIGHT):
             sel[0] = 1 - sel[0]
-        elif key.code == term.KEY_ENTER or ks in ("\n", "\r"):
+        elif activate_u or key.code == term.KEY_ENTER or ks in ("\n", "\r"):
             return (sel[0] == 0)
         elif ks in ("Q", "\x1b") or key.code == term.KEY_ESCAPE:
             return False
@@ -1294,6 +1381,8 @@ MENU_ITEMS=[
 
 def main_menu(settings, tray_running=False):
     sel=0; n=len(MENU_ITEMS)
+
+    menu_row_ref = [0]  # absolute screen row of first menu item
 
     def build():
         W=term.width or 80; H=term.height or 24
@@ -1319,6 +1408,7 @@ def main_menu(settings, tray_running=False):
         rows[row]   =" "*bx+box_top(bw)
         rows[row+1] =" "*bx+box_row(bw,center_in(C_TITLE+bold(" MAIN MENU "),bw-2))
         rows[row+2] =" "*bx+box_mid(bw)
+        menu_row_ref[0] = row + 3   # first item row (0-indexed from top of terminal)
         for i,(label,action) in enumerate(MENU_ITEMS):
             suffix=""
             if action=="tray" and tray_running: suffix=C_OK+" [running]"+RST
@@ -1326,7 +1416,8 @@ def main_menu(settings, tray_running=False):
             rows[row+3+i]=" "*bx+box_row(bw,content)
         rows[row+3+len(MENU_ITEMS)]=" "*bx+box_bot(bw)
         hr=row+3+len(MENU_ITEMS)+1
-        hint=C_KEY+"\u2191\u2193"+RST+" navigate   "+C_KEY+"Enter"+RST+" select   "+C_KEY+"Q"+RST+" quit"
+        hint=(C_KEY+"\u2191\u2193"+RST+" navigate   "+C_KEY+"Enter"+RST+" select   "+
+              C_KEY+"Q"+RST+" quit   "+C_DIM+"(mouse click supported)"+RST)
         rows[hr]=center_in(hint,W)
         return rows
 
@@ -1338,6 +1429,13 @@ def main_menu(settings, tray_running=False):
         elif key.code==term.KEY_ENTER or str(key) in ("\n","\r"):
             return MENU_ITEMS[sel][1]
         elif str(key).upper()=="Q": return "quit"
+        elif is_mouse_click(key):
+            idx = mouse_row(key) - menu_row_ref[0]
+            if 0 <= idx < n:
+                if idx == sel:
+                    return MENU_ITEMS[sel][1]   # second click on selected = confirm
+                else:
+                    sel = idx                   # first click = hover/highlight
 
 # ── Settings screen ───────────────────────────────────────────────────────────
 # ── Settings screen ───────────────────────────────────────────────────────────
@@ -1450,6 +1548,8 @@ def main():
 
     enter_alt(); hide_cursor()
     start_tray()
+    _mouse_ctx = term.mouse_enabled(clicks=True) if term.does_mouse() else None
+    if _mouse_ctx: _mouse_ctx.__enter__()
 
     wifi_ok=check_wifi_popup(settings)
     if not wifi_ok:
@@ -1509,6 +1609,9 @@ def main():
 
     except KeyboardInterrupt: pass
     finally:
+        if _mouse_ctx:
+            try: _mouse_ctx.__exit__(None, None, None)
+            except Exception: pass
         stop_bg_worker(); stop_tray()
         exit_alt(); show_cursor()
 
