@@ -2,7 +2,7 @@
 import re, sys, unicodedata
 from blessed import Terminal
 
-sys.stdout.reconfigure(encoding="utf-8")
+sys.stdout.reconfigure(encoding="utf-8", errors="replace"); sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 term = Terminal()
 
 # ── ANSI ──────────────────────────────────────────────────────────────────────
@@ -36,7 +36,7 @@ LOGO = [
 SPIN = ["\u280b","\u2819","\u2839","\u2838","\u283c","\u2834","\u2826","\u2827","\u2807","\u280f"]
 
 # ── Screen rendering ───────────────────────────────────────────────────────────
-def strip_ansi(s): return re.sub(r"\033\[[^m]*m","",s)
+def strip_ansi(s): return re.sub(r"\033\[[0-9;?]*[a-zA-Z]", "", s)
 def str_width(s):
     plain = strip_ansi(s)
     return sum(2 if unicodedata.east_asian_width(c) in ("W", "F") else 1 for c in plain)
@@ -47,15 +47,12 @@ def enter_alt():   sys.stdout.write("\033[?1049h\033[2J\033[H"); sys.stdout.flus
 def exit_alt():    sys.stdout.write("\033[?1049l"); sys.stdout.flush()
 
 def render(rows: list):
-    W = term.width or 80
     out = ["\033[?2026h", "\033[H"]
     for i, row in enumerate(rows):
-        plain = strip_ansi(row)
-        pad   = W - str_width(row)
-        out.append(row + (" "*pad if pad > 0 else ""))
-        if i < len(rows)-1:
+        out.append(row + "\033[K")
+        if i < len(rows) - 1:
             out.append("\n")
-    out.append("\033[?2026l")
+    out.append("\033[J\033[?2026l")
     sys.stdout.write("".join(out))
     sys.stdout.flush()
 

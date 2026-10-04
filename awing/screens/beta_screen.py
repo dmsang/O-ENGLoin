@@ -66,7 +66,7 @@ def beta_screen(settings):
     def _build_menu():
         W = term.width or 80; H = max(term.height or 24, 24)
         rows = [""] * H
-        bw = min(72, W - 4); bx = (W - bw) // 2
+        bw = max(30, min(72, W - 4)); bx = max(0, (W - bw) // 2)
 
         rows[1] = " " * bx + box_top(bw, " \u26a1 BETA FEATURES ")
         rows[2] = " " * bx + box_row(bw, center_in(
@@ -144,48 +144,85 @@ def beta_screen(settings):
     def _build_scan():
         """ARP scan results screen."""
         W = term.width or 80; H = max(term.height or 24, 24)
-        rows = [""] * H
-        bw = min(72, W - 4); bx = (W - bw) // 2
+        bw = max(30, min(72, W - 4)); bx = max(0, (W - bw) // 2)
 
-        rows[1] = " " * bx + box_top(bw, " \u25ce ARP SCAN RESULTS ")
         if scan_state[0] == "scanning":
-            rows[2] = " " * bx + box_row(bw, center_in(C_WARN + bold("\u29d7 Scanning... " + scan_prog[0]) + RST, bw - 2))
-            rows[3] = " " * bx + sep_row(bw)
-            rows[4] = " " * bx + box_row(bw, C_DIM + "  Pinging subnet, reading ARP, measuring uptime..." + RST)
-            rows[H - 1] = " " * bx + box_bot(bw)
+            bh = 8; by = max(1, (H - bh) // 2)
+            rows = [""] * H
+            rows[by]   = " " * bx + box_top(bw, " \u25ce ARP SCANNING ")
+            rows[by+1] = " " * bx + box_row(bw, center_in(C_WARN + bold("\u29d7 Scanning Local Subnet...") + RST, bw - 2))
+            prog_txt = scan_prog[0] or "Initialising scan..."
+            rows[by+2] = " " * bx + box_row(bw, center_in(C_KEY + prog_txt[:bw-6] + RST, bw - 2))
+            rows[by+3] = " " * bx + sep_row(bw)
+            rows[by+4] = " " * bx + box_row(bw, C_DIM + "  Pinging subnet, reading ARP, measuring stability..." + RST)
+            rows[by+5] = " " * bx + sep_row(bw)
+            hint_txt = C_KEY + "Q / Esc" + RST + " cancel scan"
+            rows[by+6] = " " * bx + box_row(bw, center_in(hint_txt, bw - 2))
+            rows[by+7] = " " * bx + box_bot(bw)
+            return rows
+
+        if scan_state[0] == "error":
+            bh = 6; by = max(1, (H - bh) // 2)
+            rows = [""] * H
+            rows[by]   = " " * bx + box_top(bw, " \u25ce ARP SCAN RESULTS ")
+            rows[by+1] = " " * bx + box_row(bw, center_in(C_ERR + bold("\u2717 Scan Failed") + RST, bw - 2))
+            err_msg = _arp_status[0].replace("error:", "") if _arp_status[0].startswith("error:") else "Scan failed"
+            rows[by+2] = " " * bx + box_row(bw, "  " + C_ERR + err_msg[:bw-6] + RST)
+            rows[by+3] = " " * bx + sep_row(bw)
+            rows[by+4] = " " * bx + box_row(bw, center_in(C_KEY + "Enter / Q / Esc" + RST + " back", bw - 2))
+            rows[by+5] = " " * bx + box_bot(bw)
             return rows
 
         results = scan_result[0] or []
-        rows[2] = " " * bx + box_row(bw, center_in(
+        if not results:
+            bh = 6; by = max(1, (H - bh) // 2)
+            rows = [""] * H
+            rows[by]   = " " * bx + box_top(bw, " \u25ce ARP SCAN RESULTS ")
+            rows[by+1] = " " * bx + box_row(bw, center_in(C_WARN + "No bypass candidates found on this subnet." + RST, bw - 2))
+            rows[by+2] = " " * bx + box_row(bw, center_in(C_DIM + "All devices require captive portal or subnet is empty." + RST, bw - 2))
+            rows[by+3] = " " * bx + sep_row(bw)
+            rows[by+4] = " " * bx + box_row(bw, center_in(C_KEY + "Enter / Q / Esc" + RST + " back", bw - 2))
+            rows[by+5] = " " * bx + box_bot(bw)
+            return rows
+
+        max_show = min(10, max(3, H - 10))
+        shown = results[:max_show]
+        bh = 8 + len(shown)
+        by = max(1, (H - bh) // 2)
+        rows = [""] * H
+        rows[by] = " " * bx + box_top(bw, " \u25ce ARP SCAN RESULTS ")
+        rows[by+1] = " " * bx + box_row(bw, center_in(
             C_OK + bold(f"  Found {len(results)} candidate(s)  ") + RST, bw - 2))
-        rows[3] = " " * bx + sep_row(bw)
+        rows[by+2] = " " * bx + sep_row(bw)
 
         col_h = " #  " + "IP".ljust(17) + "MAC".ljust(20) + "Score".ljust(8) + "Vendor"
-        rows[4] = " " * bx + box_row(bw, C_KEY + col_h + RST)
-        rows[5] = " " * bx + sep_row(bw)
+        rows[by+3] = " " * bx + box_row(bw, C_KEY + col_h + RST)
+        rows[by+4] = " " * bx + sep_row(bw)
 
-        max_show = H - 10
-        for i, c in enumerate(results[:max_show]):
+        for i, c in enumerate(shown):
             score_bar = int(c["score"] * 5) * "\u2588" + (5 - int(c["score"] * 5)) * "\u2591"
             score_clr = C_OK if c["score"] > 0.8 else C_WARN
+            v_cut = max(8, bw - 58)
             line = (f" {i+1:<3}" +
                     c["ip"].ljust(17) +
                     c["mac"].ljust(20) +
                     score_clr + score_bar + RST + "  " +
-                    C_DIM + c["vendor"] + RST)
+                    C_DIM + c["vendor"][:v_cut] + RST)
             if i == spoof_sel[0]:
-                rows[6 + i] = " " * bx + box_row(bw, C_SEL + "  " + line + RST)
+                rows[by+5+i] = " " * bx + box_row(bw, C_SEL + "  " + line + RST)
             else:
-                rows[6 + i] = " " * bx + box_row(bw, line)
+                rows[by+5+i] = " " * bx + box_row(bw, "  " + line)
 
-        sep_r = 6 + min(len(results), max_show)
+        sep_r = by + 5 + len(shown)
         rows[sep_r] = " " * bx + sep_row(bw)
         hint = (C_KEY + "\u2191\u2193" + RST + " select   " +
-                C_KEY + "Enter" + RST + " spoof this MAC   " +
+                C_KEY + "Enter" + RST + " spoof MAC   " +
                 C_KEY + "Q/Esc" + RST + " back")
-        rows[sep_r + 1] = " " * bx + box_row(bw, " " + hint)
-        rows[H - 1] = " " * bx + box_bot(bw)
+        rows[sep_r + 1] = " " * bx + box_row(bw, center_in(hint, bw - 2))
+        rows[sep_r + 2] = " " * bx + box_bot(bw)
         return rows
+
+    _scan_stop = threading.Event()
 
     def _do_scan():
         scan_state[0] = "scanning"
@@ -195,12 +232,20 @@ def beta_screen(settings):
             scan_prog[0] = txt
 
         try:
-            results = scan_bypass_candidates(settings, progress_cb=progress)
+            results = scan_bypass_candidates(settings, progress_cb=progress, stop_event=_scan_stop)
+            if _scan_stop.is_set():
+                scan_state[0] = "idle"
+                _arp_status[0] = "idle"
+                return
             scan_result[0] = results
             scan_state[0] = "done"
             _arp_status[0] = "idle"
             spoof_sel[0] = 0
         except Exception as e:
+            if _scan_stop.is_set():
+                scan_state[0] = "idle"
+                _arp_status[0] = "idle"
+                return
             scan_state[0] = "error"
             _arp_status[0] = "error:" + str(e)
 
@@ -242,26 +287,43 @@ def beta_screen(settings):
         else:
             render(_build_menu())
 
-        key = read_key()
+        timeout = 0.25 if (view[0] == "scan" and scan_state[0] == "scanning") else None
+        with term.cbreak():
+            key = term.inkey(timeout=timeout)
+
+        if not key:
+            continue
+
         n = len(ITEMS)
         ks = str(key).upper()
+        kc = getattr(key, "code", None)
 
         if view[0] == "scan":
-            results = scan_result[0] or []
             if scan_state[0] == "scanning":
-                # Just wait, re-render
-                time.sleep(0.3)
+                if ks in ("Q", "\x1b") or kc == term.KEY_ESCAPE:
+                    _scan_stop.set()
+                    scan_state[0] = "idle"
+                    _arp_status[0] = "idle"
+                    view[0] = "menu"
+                    msg[0] = "Scan canceled"
                 continue
-            if key.code == term.KEY_UP or mouse_scroll_up(key):
+
+            results = scan_result[0] or []
+            if not results or scan_state[0] == "error":
+                if kc in (term.KEY_ENTER, term.KEY_ESCAPE) or ks in ("Q", "\x1b", "\n", "\r") or is_mouse_click(key):
+                    view[0] = "menu"
+                continue
+
+            if kc == term.KEY_UP or mouse_scroll_up(key):
                 spoof_sel[0] = max(0, spoof_sel[0] - 1)
-            elif key.code == term.KEY_DOWN or mouse_scroll_down(key):
+            elif kc == term.KEY_DOWN or mouse_scroll_down(key):
                 spoof_sel[0] = min(max(0, len(results) - 1), spoof_sel[0] + 1)
-            elif key.code == term.KEY_ENTER or str(key) in ("\n", "\r"):
+            elif kc == term.KEY_ENTER or str(key) in ("\n", "\r"):
                 if results:
                     threading.Thread(target=_do_spoof,
                                      args=(results[spoof_sel[0]],), daemon=True).start()
                 view[0] = "menu"
-            elif ks in ("Q", "\x1b") or key.code == term.KEY_ESCAPE:
+            elif ks in ("Q", "\x1b") or kc == term.KEY_ESCAPE:
                 view[0] = "menu"
             elif is_mouse_click(key):
                 view[0] = "menu"
@@ -284,7 +346,9 @@ def beta_screen(settings):
                 msg[0] = "\u26a0 Enable Beta Features first"
             else:
                 view[0] = "scan"
+                _scan_stop.clear()
                 scan_state[0] = "scanning"
+                scan_prog[0] = "Starting ARP scan..."
                 scan_result[0] = None
                 t = threading.Thread(target=_do_scan, daemon=True)
                 t.start()

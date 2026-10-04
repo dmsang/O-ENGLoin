@@ -67,8 +67,8 @@ def run_auto_login_screen(settings, bg_stop=None):
 
         # rows chia: 0=top, 1=title, 2=info, 3=sep, 4..LOG_Y+LOG_H-1=logs, sep=LOG_Y+LOG_H, sep+1=hint, sep+2=bot
         # sep+2 = 4+LOG_H+2 = LOG_H+6 = H-1 khi LOG_H=H-7
-        LOG_H=H-7  # 4 header rows + separator + hint + bot = 7
-        rows=[""]*(H)
+        LOG_H = max(1, H - 7)
+        rows = [""] * max(H, LOG_Y + LOG_H + 3)
         rows[0]=box_top(W)
         rows[1]=box_row(W,center_in(C_TITLE+bold(" AWING Auto Login v"+APP_VERSION+" ")+dbg_tag,W-2))
         info=(" GW:"+C_VAL+gw+RST+" WiFi:"+sc2+ssid+RST+
