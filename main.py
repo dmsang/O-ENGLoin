@@ -1417,7 +1417,7 @@ def main_menu(settings, tray_running=False):
         rows[row+3+len(MENU_ITEMS)]=" "*bx+box_bot(bw)
         hr=row+3+len(MENU_ITEMS)+1
         hint=(C_KEY+"\u2191\u2193"+RST+" navigate   "+C_KEY+"Enter"+RST+" select   "+
-              C_KEY+"Q"+RST+" quit   "+C_DIM+"(mouse click supported)"+RST)
+              C_KEY+"Q"+RST+" quit")
         rows[hr]=center_in(hint,W)
         return rows
 
