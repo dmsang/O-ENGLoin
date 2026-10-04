@@ -75,7 +75,7 @@ FILES=(
 for file in "${FILES[@]}"; do
     TARGET="$INSTALL_DIR/$file"
     mkdir -p "$(dirname "$TARGET")"
-    curl -sSL "$RAW/$file" -o "$TARGET"
+    curl -sSLf "$RAW/$file" -o "$TARGET"
 done
 echo -e "\033[1;32m        Done.\033[0m"
 

@@ -1,6 +1,7 @@
-__pycache__/
+﻿__pycache__/
 *.pyc
 settings.json
 _*.py
+!__init__.py
 *.bak
 *.update_tmp
