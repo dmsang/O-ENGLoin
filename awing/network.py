@@ -22,12 +22,53 @@ def create_session():
     return s
 
 # ── Connectivity check ────────────────────────────────────────────────────────
-def has_internet(settings):
-    url = settings["check_url"]; tmo = settings["request_timeout"]
+def has_internet(settings, timeout=None):
+    url = settings["check_url"]
+    tmo = timeout if timeout is not None else min(settings.get("request_timeout", 10), 2.5)
     try:
         r = requests.get(url, timeout=tmo, allow_redirects=False)
         return r.status_code == 204
     except Exception: return False
+
+
+# ── Gateway Status & Remaining Time ───────────────────────────────────────────
+def _parse_duration(s):
+    total = 0
+    h = re.search(r"(\d+)\s*(?:h|hr|giờ)", s, re.I)
+    if h: total += int(h.group(1)) * 3600
+    m = re.search(r"(\d+)\s*(?:m|min|phút)", s, re.I)
+    if m: total += int(m.group(1)) * 60
+    sec = re.search(r"(\d+)\s*(?:s|sec|giây)", s, re.I)
+    if sec: total += int(sec.group(1))
+    return total
+
+def get_gateway_status(settings, timeout=2.0):
+    gw = settings.get("gateway", "192.168.200.1")
+    try:
+        r = requests.get(f"http://{gw}/status", timeout=timeout)
+        text = r.content.decode("utf-8", errors="ignore")
+        soup = BeautifulSoup(text, "html.parser")
+        info = {}
+        for tr in soup.select("table tr"):
+            tds = tr.find_all("td")
+            if len(tds) == 2:
+                k = tds[0].get_text(strip=True).lower()
+                v = tds[1].get_text(strip=True)
+                if "ip" in k: info["ip"] = v
+                elif "mac" in k: info["mac"] = v
+                elif any(x in k for x in ["còn lại", "remaining", "left", "time left"]):
+                    info["remaining_str"] = v
+                    info["remaining_sec"] = _parse_duration(v)
+                elif any(x in k for x in ["kết nối", "connected", "uptime"]):
+                    info["uptime_str"] = v
+                    info["uptime_sec"] = _parse_duration(v)
+        return info
+    except Exception:
+        return {}
+
+def get_session_remaining(settings, timeout=2.0):
+    st = get_gateway_status(settings, timeout=timeout)
+    return st.get("remaining_sec")
 
 # ── Captive portal ────────────────────────────────────────────────────────────
 def get_captive_info(session, settings):
@@ -80,11 +121,16 @@ def do_login(settings, log_cb):
         r2 = session.post(action, data=fd,
             headers={"Referer":awing_url}, allow_redirects=True, timeout=tmo)
 
-        log_cb("INFO","Checking internet...")
-        time.sleep(2)
-        if has_internet(settings):
-            _last_login_time[0] = time.time()
-            log_cb("OK","Login successful! Internet OK"); return True
+        log_cb("INFO","Verifying connection...")
+        for _ in range(4):
+            if has_internet(settings, timeout=1.5):
+                _last_login_time[0] = time.time()
+                rem = get_session_remaining(settings, timeout=1.5)
+                if rem is not None:
+                    from .state import _update_session_remaining
+                    _update_session_remaining(rem)
+                log_cb("OK","Login successful! Internet OK"); return True
+            time.sleep(0.25)
         log_cb("WARN","Login done but internet not yet active"); return False
 
     except requests.RequestException as e:

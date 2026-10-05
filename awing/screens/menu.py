@@ -3,7 +3,7 @@ from awing import (term, bold, C_TITLE, C_BORDER, C_SEL, C_OK, C_ERR, C_WARN,
                    C_DIM, C_KEY, C_VAL, C_DBG, RST, render, center_in,
                    box_top, box_mid, box_bot, box_row, read_key,
                    is_mouse_click, mouse_row, LOGO, STATUS_COLORS,
-                   _debug_on, _get_status, get_current_ssid)
+                   _debug_on, _get_status, _format_remaining_tag, get_current_ssid)
 
 MENU_ITEMS = [
     ("\u25b6  Auto Login",         "auto"),
@@ -39,9 +39,10 @@ def main_menu(settings, tray_running=False):
         sc2 = C_OK if ssid == req else C_ERR
         st = _get_status(); sc = STATUS_COLORS.get(st, C_DIM)
         dbg_tag = (" " + C_DBG + "[DEBUG ON]" + RST) if _debug_on[0] else ""
+        rem_tag = _format_remaining_tag(compact=False)
         info = (" WiFi:" + sc2 + ssid + RST +
                 "  GW:" + C_VAL + settings["gateway"] + RST +
-                "  Status:" + sc + st + RST + dbg_tag)
+                "  Status:" + sc + st + RST + rem_tag + dbg_tag)
         rows[row] = center_in(info, W); row += 1 if (term.height or 24) <= 24 else 2
 
         bw = 50; bx = (W - bw) // 2

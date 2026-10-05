@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # AWING Auto Login — Linux Installer (Ubuntu, Debian, Fedora, Arch, etc.)
-# Run with: curl -sSL https://raw.githubusercontent.com/dmsang/O-ENGLoin/v1.0.7/install.sh | bash
+# Run with: curl -sSL https://raw.githubusercontent.com/dmsang/O-ENGLoin/v1.0.8/install.sh | bash
 
 set -e
 
 REPO="dmsang/O-ENGLoin"
-RAW="https://raw.githubusercontent.com/$REPO/v1.0.7"
+RAW="https://raw.githubusercontent.com/$REPO/v1.0.8"
 INSTALL_DIR="$HOME/.local/share/awing-login"
 BIN_DIR="$HOME/.local/bin"
 

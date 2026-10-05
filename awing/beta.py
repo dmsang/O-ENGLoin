@@ -48,13 +48,16 @@ def should_preempt(settings):
     """Return True if pre-emptive re-login should fire right now."""
     if not (_beta_on[0] and _preempt_on[0]):
         return False
+    from .state import _get_remaining_sec
+    rem = _get_remaining_sec()
+    window = preempt_window(settings)
+    if rem is not None:
+        return rem <= window
     last = _last_login_time[0]
     if not last:
         return False
-    session_len = settings.get("beta_session_len", 900)   # default 15 min
-    window      = preempt_window(settings)
-    elapsed     = time.time() - last
-    # Fire when there are `window` seconds left in the session
+    session_len = settings.get("beta_session_len", 900)
+    elapsed = time.time() - last
     return elapsed >= (session_len - window)
 
 

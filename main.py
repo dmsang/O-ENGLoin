@@ -56,6 +56,19 @@ def main():
         exit_alt(); show_cursor(); stop_tray()
         print(C_WARN + "Exited." + RST); return
 
+    import threading
+    from awing import get_gateway_status, _update_session_remaining, _set_status
+    def _init_status_bg():
+        try:
+            if has_internet(settings, timeout=1.5):
+                _set_status("ONLINE")
+                st_data = get_gateway_status(settings, timeout=1.5)
+                if "remaining_sec" in st_data:
+                    _update_session_remaining(st_data["remaining_sec"])
+        except Exception:
+            pass
+    threading.Thread(target=_init_status_bg, daemon=True).start()
+
     tray_running = False
     try:
         while True:

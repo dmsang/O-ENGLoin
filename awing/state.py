@@ -40,3 +40,31 @@ def _last_login_str():
     hours = mins // 60; rem = mins % 60
     if rem:         return C_DIM + " | Last login: " + str(hours) + "h " + str(rem) + "m ago" + RST
     return C_DIM + " | Last login: " + str(hours) + "h ago" + RST
+# ── Session countdown state ──────────────────────────────────────────────────
+_session_remaining = [None]  # seconds remaining from last sync
+_session_sync_time = [0.0]   # timestamp of last sync
+
+def _update_session_remaining(secs):
+    _session_remaining[0] = int(secs) if secs is not None else None
+    _session_sync_time[0] = time.time()
+
+def _get_remaining_sec():
+    if _session_remaining[0] is None:
+        return None
+    elapsed = time.time() - _session_sync_time[0]
+    return max(0, int(_session_remaining[0] - elapsed))
+
+def _format_remaining_tag(compact=False):
+    rem = _get_remaining_sec()
+    if rem is None:
+        return ""
+    m, s = divmod(rem, 60)
+    if rem <= 15:
+        clr = "\033[38;2;220;80;80m"
+    elif rem <= 60:
+        clr = "\033[38;2;240;180;50m"
+    else:
+        clr = "\033[38;2;80;200;120m"
+    if compact:
+        return f" Left:{clr}{m:02d}m{s:02d}s{RST}"
+    return f"  Session:{clr}{m:02d}m{s:02d}s{RST}"

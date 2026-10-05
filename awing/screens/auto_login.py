@@ -8,135 +8,206 @@ from awing import (term, bold, C_TITLE, C_BORDER, C_SEL, C_OK, C_ERR, C_WARN,
                    APP_VERSION, SPIN, STATUS_COLORS, LOG_COLORS, LOG_ICONS,
                    _debug_on, _tray_quit, _logs, _log_lock, _last_login_time,
                    _set_status, _get_status, _add_log, _last_login_str,
-                   get_current_ssid, has_internet, do_login)
+                   _get_remaining_sec, _format_remaining_tag, _update_session_remaining,
+                   get_current_ssid, has_internet, do_login, get_gateway_status)
 
 def dbg(msg):
     if _debug_on[0]: _add_log("DBG", msg)
 
-def run_auto_login_screen(settings, bg_stop=None):
-    scroll=[0]; spin_i=[0]; local_stop=threading.Event()
 
-    def worker():
-        chk=settings["check_interval"]; ret=settings["retry_interval"]
-        while not local_stop.is_set():
-            _set_status("CHECKING",notify=False)
-            dbg("[worker] Checking internet connection...")
-            if has_internet(settings):
+def _auto_login_worker(settings, stop_event, is_bg=False):
+    """Unified smart auto-login worker with countdown tracking and instant re-login."""
+    chk = settings.get("check_interval", 15)
+    ret = settings.get("retry_interval", 5)
+    prefix = "[BG] " if is_bg else ""
+    last_sync = [0.0]
+
+    while not stop_event.is_set():
+        now = time.time()
+        rem = _get_remaining_sec()
+
+        # 1. Periodically sync session time from router status page
+        if (now - last_sync[0] >= 30) or (rem is None and _get_status() == "ONLINE"):
+            st_data = get_gateway_status(settings, timeout=1.5)
+            if "remaining_sec" in st_data:
+                _update_session_remaining(st_data["remaining_sec"])
+                rem = st_data["remaining_sec"]
+                dbg(f"{prefix}Session lease synced: {rem}s ({st_data.get('remaining_str', '')})")
+            last_sync[0] = now
+
+        # 2. Instant auto-reconnect: if session reaches <= 2s, renew immediately
+        if rem is not None and rem <= 2:
+            _set_status("LOGGING IN", notify=False)
+            _add_log("INFO", f"{prefix}Session expiring ({rem}s) — instant auto-reconnect...")
+            t0 = time.time()
+            ok = do_login(settings, _add_log)
+            dur = time.time() - t0
+            if ok:
+                _last_login_time[0] = time.time()
                 _set_status("ONLINE")
-                if should_preempt(settings):
-                    _add_log("INFO", "[PREEMPT] Session expiring — renewing early...")
-                    do_login(settings, _add_log)
-                dbg("[worker] Internet OK - next check in "+str(chk)+"s")
-                for _ in range(chk*2):
-                    if local_stop.is_set(): return
+                _add_log("OK", f"{prefix}Reconnected in {dur:.1f}s! Session renewed.")
+                st_data = get_gateway_status(settings, timeout=1.5)
+                if "remaining_sec" in st_data:
+                    _update_session_remaining(st_data["remaining_sec"])
+                last_sync[0] = time.time()
+                continue
+            else:
+                _set_status("OFFLINE")
+                _add_log("WARN", f"{prefix}Instant re-login failed — retrying in {ret}s...")
+                for _ in range(ret * 2):
+                    if stop_event.is_set(): return
+                    time.sleep(0.5)
+                continue
+
+        # 3. Connectivity check
+        _set_status("CHECKING", notify=False)
+        dbg(f"{prefix}Checking connection...")
+        online = has_internet(settings, timeout=2.0)
+
+        if online:
+            _set_status("ONLINE")
+            if should_preempt(settings):
+                _add_log("INFO", f"{prefix}[PREEMPT] Session renewal triggered...")
+                do_login(settings, _add_log)
+
+            rem = _get_remaining_sec()
+            # Adaptive sleep: sleep longer when plenty of time, wake up fast near cutoff
+            if rem is not None:
+                if rem > 20:
+                    sleep_dur = min(chk, rem - 10)
+                elif rem > 5:
+                    sleep_dur = 2
+                else:
+                    sleep_dur = 0.5
+            else:
+                sleep_dur = chk
+
+            steps = max(1, int(sleep_dur * 2))
+            for _ in range(steps):
+                if stop_event.is_set(): return
+                time.sleep(0.5)
+
+        else:
+            _set_status("OFFLINE")
+            _add_log("WARN", f"{prefix}Internet lost — attempting login...")
+            _set_status("LOGGING IN", notify=False)
+            t0 = time.time()
+            ok = do_login(settings, _add_log)
+            dur = time.time() - t0
+            if ok:
+                _last_login_time[0] = time.time()
+                _set_status("ONLINE")
+                _add_log("OK", f"{prefix}Reconnected in {dur:.1f}s!")
+                st_data = get_gateway_status(settings, timeout=1.5)
+                if "remaining_sec" in st_data:
+                    _update_session_remaining(st_data["remaining_sec"])
+                last_sync[0] = time.time()
+                steps = max(1, chk * 2)
+                for _ in range(steps):
+                    if stop_event.is_set(): return
                     time.sleep(0.5)
             else:
                 _set_status("OFFLINE")
-                _add_log("WARN","Internet lost - attempting login...")
-                _set_status("LOGGING IN",notify=False)
-                ok=do_login(settings,_add_log)
-                if ok:
-                    _last_login_time[0] = time.time()
-                    _set_status("ONLINE")
-                    _add_log("OK","Reconnected! Next check in "+str(chk)+"s")
-                    for _ in range(chk*2):
-                        if local_stop.is_set(): return
-                        time.sleep(0.5)
-                else:
-                    _set_status("OFFLINE")
-                    _add_log("ERR","Login failed - retrying in "+str(ret)+"s")
-                    for _ in range(ret*2):
-                        if local_stop.is_set(): return
-                        time.sleep(0.5)
+                _add_log("ERR", f"{prefix}Login failed — retrying in {ret}s...")
+                for _ in range(ret * 2):
+                    if stop_event.is_set(): return
+                    time.sleep(0.5)
+
+
+def run_auto_login_screen(settings, bg_stop=None):
+    scroll = [0]; spin_i = [0]; local_stop = threading.Event()
 
     if bg_stop is None:
-        wt=threading.Thread(target=worker,daemon=True); wt.start()
+        wt = threading.Thread(target=lambda: _auto_login_worker(settings, local_stop, is_bg=False), daemon=True)
+        wt.start()
     else:
-        wt=None
+        wt = None
 
     def build():
-        W=term.width or 80; H=term.height or 24
-        LOG_Y=4
-        st=_get_status(); sc=STATUS_COLORS.get(st,C_DIM)
-        spin=SPIN[spin_i[0]%len(SPIN)]; spin_i[0]+=1
-        gw=settings["gateway"]; chk=settings["check_interval"]; ret=settings["retry_interval"]
-        ssid=get_current_ssid() or "(N/A)"
-        req=settings.get("required_ssid","")
-        sc2=C_OK if ssid==req else C_WARN
-        dbg_tag=(" "+C_DBG+"[DEBUG]"+RST) if _debug_on[0] else ""
+        W = term.width or 80; H = term.height or 24
+        LOG_Y = 4
+        st = _get_status(); sc = STATUS_COLORS.get(st, C_DIM)
+        spin = SPIN[spin_i[0] % len(SPIN)]; spin_i[0] += 1
+        gw = settings["gateway"]; chk = settings["check_interval"]; ret = settings["retry_interval"]
+        ssid = get_current_ssid() or "(N/A)"
+        req = settings.get("required_ssid", "")
+        sc2 = C_OK if ssid == req else C_WARN
+        dbg_tag = (" " + C_DBG + "[DEBUG]" + RST) if _debug_on[0] else ""
 
-        # rows chia: 0=top, 1=title, 2=info, 3=sep, 4..LOG_Y+LOG_H-1=logs, sep=LOG_Y+LOG_H, sep+1=hint, sep+2=bot
-        # sep+2 = 4+LOG_H+2 = LOG_H+6 = H-1 khi LOG_H=H-7
         LOG_H = max(1, H - 7)
         rows = [""] * max(H, LOG_Y + LOG_H + 3)
-        rows[0]=box_top(W)
-        rows[1]=box_row(W,center_in(C_TITLE+bold(" AWING Auto Login v"+APP_VERSION+" ")+dbg_tag,W-2))
-        info=(" GW:"+C_VAL+gw+RST+" WiFi:"+sc2+ssid+RST+
-              " Status:"+sc+bold(st)+RST+sc+" "+spin+RST+
-              C_DIM+" chk="+str(chk)+"s ret="+str(ret)+"s"+RST+
-              _last_login_str())
-        rows[2]=box_row(W,info)
-        rows[3]=sep_row(W)
+        rows[0] = box_top(W)
+        rows[1] = box_row(W, center_in(C_TITLE + bold(" AWING Auto Login v" + APP_VERSION + " ") + dbg_tag, W - 2))
+
+        rem_tag = _format_remaining_tag(compact=True)
+        chk_info = C_DIM + " chk=" + str(chk) + "s" + RST if (W >= 95 or not rem_tag) else ""
+        info = (" GW:" + C_VAL + gw + RST +
+                " WiFi:" + sc2 + ssid + RST +
+                " Status:" + sc + bold(st) + RST + sc + " " + spin + RST +
+                rem_tag + chk_info + _last_login_str())
+        rows[2] = box_row(W, info)
+        rows[3] = sep_row(W)
 
         with _log_lock:
-            total=len(_logs); start=scroll[0]
-            visible=list(_logs[start:start+LOG_H])
+            total = len(_logs); start = scroll[0]
+            visible = list(_logs[start:start+LOG_H])
 
         for i in range(LOG_H):
-            if i<len(visible):
-                ts,lvl,msg=visible[i]
-                c=LOG_COLORS.get(lvl,C_DIM); ic=LOG_ICONS.get(lvl," ")
-                content=" "+C_DIM+ts+RST+" "+c+ic+" "+msg+RST
+            if i < len(visible):
+                ts, lvl, msg = visible[i]
+                c = LOG_COLORS.get(lvl, C_DIM); ic = LOG_ICONS.get(lvl, " ")
+                content = " " + C_DIM + ts + RST + " " + c + ic + " " + msg + RST
             else:
-                content=""
-            rows[LOG_Y+i]=box_row(W,content)
+                content = ""
+            rows[LOG_Y + i] = box_row(W, content)
 
-        sep=LOG_Y+LOG_H
-        rows[sep]=sep_row(W)
+        sep = LOG_Y + LOG_H
+        rows[sep] = sep_row(W)
 
-        is_bg=bg_stop is not None
-        if total>LOG_H:
-            sb=C_DIM+"("+str(start+1)+"-"+str(min(start+LOG_H,total))+"/"+str(total)+")"+RST
+        is_bg = bg_stop is not None
+        if total > LOG_H:
+            sb = C_DIM + "(" + str(start + 1) + "-" + str(min(start + LOG_H, total)) + "/" + str(total) + ")" + RST
         else:
-            sb=""
+            sb = ""
         if is_bg:
-            hint=(C_KEY+"\u2191\u2193"+RST+" scroll "+sb+
-                  "  "+C_KEY+"End"+RST+" jump to bottom"+
-                  "  "+C_KEY+"Q/Esc"+RST+" hide to tray"+
-                  "  "+C_KEY+"X"+RST+" stop worker")
+            hint = (C_KEY + "\u2191\u2193" + RST + " scroll " + sb +
+                    "  " + C_KEY + "End" + RST + " jump to bottom" +
+                    "  " + C_KEY + "Q/Esc" + RST + " hide to tray" +
+                    "  " + C_KEY + "X" + RST + " stop worker")
         else:
-            hint=(C_KEY+"\u2191\u2193"+RST+" scroll "+sb+
-                  "  "+C_KEY+"End"+RST+" jump to bottom"+
-                  "  "+C_KEY+"Q/Esc"+RST+" back to menu")
-        rows[sep+1]=box_row(W," "+hint)
-        rows[sep+2]=box_bot(W)
+            hint = (C_KEY + "\u2191\u2193" + RST + " scroll " + sb +
+                    "  " + C_KEY + "End" + RST + " jump to bottom" +
+                    "  " + C_KEY + "Q/Esc" + RST + " back to menu")
+        rows[sep + 1] = box_row(W, " " + hint)
+        rows[sep + 2] = box_bot(W)
         return rows
 
     try:
         while True:
             if _tray_quit.is_set(): break
             render(build())
-            with term.cbreak(): key=term.inkey(timeout=0.35)
+            with term.cbreak(): key = term.inkey(timeout=0.35)
             if key:
-                ks=str(key).upper()
-                if key.code==term.KEY_ESCAPE or ks=="Q": break
-                elif ks=="X" and bg_stop is not None: bg_stop.set(); break
-                elif key.code==term.KEY_UP or mouse_scroll_up(key):
-                    with _log_lock: scroll[0]=max(0,scroll[0]-1)
-                elif key.code==term.KEY_DOWN or mouse_scroll_down(key):
+                ks = str(key).upper()
+                if key.code == term.KEY_ESCAPE or ks == "Q": break
+                elif ks == "X" and bg_stop is not None: bg_stop.set(); break
+                elif key.code == term.KEY_UP or mouse_scroll_up(key):
+                    with _log_lock: scroll[0] = max(0, scroll[0] - 1)
+                elif key.code == term.KEY_DOWN or mouse_scroll_down(key):
                     with _log_lock:
-                        _lh=(term.height or 24)-7
-                        total=len(_logs)
-                        scroll[0]=min(max(0,total-_lh),scroll[0]+1)
-                elif key.code==term.KEY_END or ks=="G":
+                        _lh = (term.height or 24) - 7
+                        total = len(_logs)
+                        scroll[0] = min(max(0, total - _lh), scroll[0] + 1)
+                elif key.code == term.KEY_END or ks == "G":
                     with _log_lock:
-                        _lh=(term.height or 24)-7
-                        scroll[0]=max(0,len(_logs)-_lh)
-                elif key.code==term.KEY_HOME:
-                    scroll[0]=0
+                        _lh = (term.height or 24) - 7
+                        scroll[0] = max(0, len(_logs) - _lh)
+                elif key.code == term.KEY_HOME:
+                    scroll[0] = 0
     finally:
         local_stop.set()
-        if wt: wt.join(timeout=3)
+        if wt: wt.join(timeout=2)
+
 
 # ── Background worker ─────────────────────────────────────────────────────────
 _bg_stop   = threading.Event()
@@ -144,40 +215,11 @@ _bg_thread = [None]
 
 def start_bg_worker(settings):
     _bg_stop.clear()
-    def worker():
-        chk=settings["check_interval"]; ret=settings["retry_interval"]
-        while not _bg_stop.is_set():
-            _set_status("CHECKING",notify=False)
-            dbg("[bg_worker] Checking connection...")
-            if has_internet(settings):
-                _set_status("ONLINE")
-                if should_preempt(settings):
-                    _add_log("INFO", "[BG-PREEMPT] Renewing session before timeout...")
-                    do_login(settings, _add_log)
-                dbg("[bg_worker] Internet OK")
-                for _ in range(chk*2):
-                    if _bg_stop.is_set(): return
-                    time.sleep(0.5)
-            else:
-                _set_status("OFFLINE")
-                _add_log("WARN","[BG] Internet lost - logging in...")
-                _set_status("LOGGING IN",notify=False)
-                ok=do_login(settings,_add_log)
-                if ok:
-                    _last_login_time[0] = time.time()
-                    _set_status("ONLINE")
-                    _add_log("OK","[BG] Login successful!")
-                    for _ in range(chk*2):
-                        if _bg_stop.is_set(): return
-                        time.sleep(0.5)
-                else:
-                    _set_status("OFFLINE")
-                    _add_log("ERR","[BG] Login failed")
-                    for _ in range(ret*2):
-                        if _bg_stop.is_set(): return
-                        time.sleep(0.5)
-    t=threading.Thread(target=worker,daemon=True); t.start(); _bg_thread[0]=t
+    t = threading.Thread(target=lambda: _auto_login_worker(settings, _bg_stop, is_bg=True), daemon=True)
+    t.start()
+    _bg_thread[0] = t
 
 def stop_bg_worker():
     _bg_stop.set()
-    if _bg_thread[0]: _bg_thread[0].join(timeout=3)
+    if _bg_thread[0]:
+        _bg_thread[0].join(timeout=2)

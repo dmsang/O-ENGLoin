@@ -13,10 +13,11 @@ from .tray    import (_tray_ref, _tray_show, _tray_quit, _notif_on,
                       start_tray, stop_tray, _TRAY_SUPPORTED)
 from .state   import (_logs, _log_lock, _status, _last_login_time,
                       _add_log, _set_status, _get_status, _last_login_str,
-                      MAX_LOGS)
+                      _session_remaining, _get_remaining_sec, _format_remaining_tag,
+                      _update_session_remaining, MAX_LOGS)
 from .wifi    import (get_current_ssid, get_available_ssids, connect_to_ssid)
 from .network import (has_internet, do_login, get_local_ip, ping_host,
-                      run_speedtest_threaded)
+                      run_speedtest_threaded, get_gateway_status, get_session_remaining)
 from .compat  import hide_console, show_console, _get_hwnd
 
 # Shared debug flag — modules read this via  from awing import _debug_on
