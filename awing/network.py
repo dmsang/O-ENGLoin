@@ -71,13 +71,15 @@ def get_session_remaining(settings, timeout=2.0):
     return st.get("remaining_sec")
 
 # ── Captive portal ────────────────────────────────────────────────────────────
-def get_captive_info(session, settings):
-    gw  = settings["gateway"]; tmo = settings["request_timeout"]
+def get_captive_info(session, settings, timeout=None):
+    gw  = settings["gateway"]
+    tmo = timeout if timeout is not None else min(settings.get("request_timeout", 10), 3.0)
     url = "http://" + gw + "/login"
-    r   = session.get(url, timeout=tmo); r.raise_for_status()
+    r   = session.get(url, timeout=tmo)
+    r.raise_for_status()
     soup = BeautifulSoup(r.text, "html.parser")
     form = soup.select_one("#authForm")
-    if not form: raise RuntimeError("Cannot find #authForm")
+    if not form: raise RuntimeError("Cannot find #authForm in captive response")
     def val(id_):
         el = form.select_one("#" + id_)
         if not el: raise RuntimeError("Cannot find #" + id_)
@@ -87,56 +89,98 @@ def get_captive_info(session, settings):
              "login_url": val("login_url"), "chap_id": val("chap-id"),
              "chap_challenge": val("chap-challenge")}, r.url)
 
-def do_login(settings, log_cb):
-    gw = settings["gateway"]; tmo = settings["request_timeout"]
-    if not gw: log_cb("ERR","No default gateway configured"); return False
-    session = create_session()
-    try:
-        log_cb("INFO","Connecting to gateway " + gw + "...")
-        captive, _ = get_captive_info(session, settings)
-        log_cb("INFO","MAC:" + captive["client_mac"] + " IP:" + captive["client_ip"])
+def do_login(settings, log_cb, max_retries=3):
+    gw = settings.get("gateway", "192.168.200.1")
+    if not gw:
+        log_cb("ERR", "No default gateway configured")
+        return False
 
-        r = session.get(settings["awing_login_url"], params=captive, timeout=tmo)
-        r.raise_for_status(); awing_url = r.url
+    req_tmo = settings.get("request_timeout", 10)
+    gw_tmo  = min(req_tmo, 3.0)
+    wan_tmo = min(req_tmo, 4.0)
 
-        verify = settings["awing_login_url"].replace("/login","/Home/VerifyUrl")
-        r = session.post(verify,
-            headers={"X-Requested-With":"XMLHttpRequest","Referer":awing_url},
-            timeout=tmo); r.raise_for_status()
+    for attempt in range(1, max_retries + 1):
+        session = create_session()
+        try:
+            if attempt == 1:
+                log_cb("INFO", f"Connecting to gateway {gw}...")
+            else:
+                log_cb("INFO", f"Connecting to gateway {gw} (attempt {attempt}/{max_retries})...")
 
-        data = r.json(); ctx = data["captiveContext"]
-        campaign = ctx["campaignData"]
-        log_cb("INFO","Session:" + str(campaign["sessionId"])[:12] + "...")
+            captive, _ = get_captive_info(session, settings, timeout=gw_tmo)
+            log_cb("INFO", f"MAC:{captive['client_mac']} IP:{captive['client_ip']}")
 
-        auth = ctx.get("contentAuthenForm")
-        if not auth: raise RuntimeError("No contentAuthenForm in response")
-        soup = BeautifulSoup(auth,"html.parser")
-        form = soup.select_one("#frmLogin")
-        if not form: raise RuntimeError("Cannot find #frmLogin")
-        action = form.get("action")
-        if not action: raise RuntimeError("Form has no action")
-        fd = {el.get("name"): el.get("value","") for el in form.select("input") if el.get("name")}
-        log_cb("INFO","Logging in as: " + str(fd.get("username","?")))
+            r = session.get(settings["awing_login_url"], params=captive, timeout=wan_tmo)
+            r.raise_for_status()
+            awing_url = r.url
 
-        r2 = session.post(action, data=fd,
-            headers={"Referer":awing_url}, allow_redirects=True, timeout=tmo)
+            verify = settings["awing_login_url"].replace("/login", "/Home/VerifyUrl")
+            r = session.post(verify,
+                headers={"X-Requested-With": "XMLHttpRequest", "Referer": awing_url},
+                timeout=wan_tmo)
+            r.raise_for_status()
 
-        log_cb("INFO","Verifying connection...")
-        for _ in range(4):
-            if has_internet(settings, timeout=1.5):
-                _last_login_time[0] = time.time()
-                rem = get_session_remaining(settings, timeout=1.5)
-                if rem is not None:
-                    from .state import _update_session_remaining
-                    _update_session_remaining(rem)
-                log_cb("OK","Login successful! Internet OK"); return True
-            time.sleep(0.25)
-        log_cb("WARN","Login done but internet not yet active"); return False
+            data = r.json()
+            ctx = data["captiveContext"]
+            campaign = ctx["campaignData"]
+            log_cb("INFO", "Session:" + str(campaign["sessionId"])[:12] + "...")
 
-    except requests.RequestException as e:
-        log_cb("ERR","Network error: " + str(e)); return False
-    except Exception as e:
-        log_cb("ERR","Error: " + str(e)); return False
+            auth = ctx.get("contentAuthenForm")
+            if not auth:
+                raise RuntimeError("No contentAuthenForm in response")
+            soup = BeautifulSoup(auth, "html.parser")
+            form = soup.select_one("#frmLogin")
+            if not form:
+                raise RuntimeError("Cannot find #frmLogin")
+            action = form.get("action")
+            if not action:
+                raise RuntimeError("Form has no action")
+            fd = {el.get("name"): el.get("value", "") for el in form.select("input") if el.get("name")}
+            log_cb("INFO", "Logging in as: " + str(fd.get("username", "?")))
+
+            r2 = session.post(action, data=fd,
+                headers={"Referer": awing_url}, allow_redirects=True, timeout=wan_tmo)
+
+            log_cb("INFO", "Verifying connection...")
+            for _ in range(5):
+                if has_internet(settings, timeout=1.2):
+                    _last_login_time[0] = time.time()
+                    rem = get_session_remaining(settings, timeout=1.5)
+                    if rem is not None:
+                        from .state import _update_session_remaining
+                        _update_session_remaining(rem)
+                    log_cb("OK", "Login successful! Internet OK")
+                    return True
+                time.sleep(0.2)
+
+            if attempt < max_retries:
+                log_cb("WARN", f"Internet not yet active — retrying immediately ({attempt+1}/{max_retries})...")
+                time.sleep(0.1)
+                continue
+            else:
+                log_cb("WARN", "Login done but internet not yet active")
+                return False
+
+        except requests.RequestException as e:
+            err_msg = str(e)
+            if attempt < max_retries:
+                log_cb("WARN", f"Network error: {err_msg} — retrying immediately ({attempt+1}/{max_retries})...")
+                time.sleep(0.1)
+                continue
+            else:
+                log_cb("ERR", f"Network error: {err_msg}")
+                return False
+        except Exception as e:
+            err_msg = str(e)
+            if attempt < max_retries:
+                log_cb("WARN", f"Error: {err_msg} — retrying immediately ({attempt+1}/{max_retries})...")
+                time.sleep(0.1)
+                continue
+            else:
+                log_cb("ERR", f"Error: {err_msg}")
+                return False
+
+    return False
 
 # ── Local IP ──────────────────────────────────────────────────────────────────
 def get_local_ip():
@@ -168,12 +212,13 @@ def ping_host(host="8.8.8.8", count=3):
 
 # ── Speedtest ─────────────────────────────────────────────────────────────────
 def run_speedtest_threaded(result_holder, stop_ev):
+    res = result_holder[0] if isinstance(result_holder, (list, tuple)) else result_holder
     try:
         st = _speedtest_lib.Speedtest(secure=True)
         st._shutdown_event = stop_ev
         if stop_ev.is_set(): return
 
-        result_holder[0]["phase"] = "Finding best server..."
+        res["phase"] = "Finding best server..."
         st.get_best_server()
         if stop_ev.is_set(): return
 
@@ -182,34 +227,34 @@ def run_speedtest_threaded(result_holder, stop_ev):
         server_str = f"{sponsor} - {name}" if sponsor and name else (sponsor or name or "Unknown")
         lat = srv.get("latency")
         if lat is not None: server_str += f" ({lat:.1f}ms)"
-        result_holder[0]["server"] = server_str
+        res["server"] = server_str
         pub_ip = client.get("ip",""); isp = client.get("isp","")
         if pub_ip:
-            result_holder[0]["public_ip"] = f"{pub_ip} ({isp})" if isp else pub_ip
+            res["public_ip"] = f"{pub_ip} ({isp})" if isp else pub_ip
 
-        result_holder[0]["phase"] = "Testing download..."
+        res["phase"] = "Testing download..."
         dl_count = [0]
         def dl_cb(i, total, start=False, end=False):
             if end:
                 dl_count[0] += 1
-                result_holder[0]["dl_pct"] = min(100, int((dl_count[0]/max(1,total))*100))
+                res["dl_pct"] = min(100, int((dl_count[0]/max(1,total))*100))
         dl = st.download(callback=dl_cb) / 1_000_000
-        result_holder[0]["download"] = dl; result_holder[0]["dl_pct"] = 100
+        res["download"] = dl; res["dl_pct"] = 100
         if stop_ev.is_set(): return
 
-        result_holder[0]["phase"] = "Testing upload..."
+        res["phase"] = "Testing upload..."
         ul_count = [0]
         def ul_cb(i, total, start=False, end=False):
             if end:
                 ul_count[0] += 1
-                result_holder[0]["ul_pct"] = min(100, int((ul_count[0]/max(1,total))*100))
+                res["ul_pct"] = min(100, int((ul_count[0]/max(1,total))*100))
         ul = st.upload(callback=ul_cb) / 1_000_000
-        result_holder[0]["upload"] = ul; result_holder[0]["ul_pct"] = 100
+        res["upload"] = ul; res["ul_pct"] = 100
         if stop_ev.is_set(): return
-        result_holder[0]["phase"] = "done"
+        res["phase"] = "done"
     except Exception as e:
         if not stop_ev.is_set():
             err_msg = str(e)
             if "No matched servers" in err_msg or "Cannot retrieve speedtest configuration" in err_msg:
                 err_msg = "Cannot reach Speedtest servers"
-            result_holder[0]["phase"] = "error"; result_holder[0]["error"] = err_msg
+            res["phase"] = "error"; res["error"] = err_msg

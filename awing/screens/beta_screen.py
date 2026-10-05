@@ -29,7 +29,7 @@ def beta_screen(settings):
 
     ITEMS = [
         ("beta_enabled",   "\u26a1 Beta Features",          "master"),
-        ("beta_preempt",   "\u23f1  Pre-emptive Re-login",  "preempt"),
+        ("beta_preempt",   "\u23f1  Instant Auto-Reconnect", "preempt"),
         ("beta_arp",       "\u25ce  ARP MAC Bypass",  "arp"),
     ]
     # sync toggles from settings
@@ -95,9 +95,9 @@ def beta_screen(settings):
                 C_DIM + "Individual features remain inactive unless this is ON." + RST,
             ],
             "preempt": [
-                C_OK + "\u23f1 Pre-emptive Re-login" + RST + C_DIM + " — logs in BEFORE session expires." + RST,
-                C_DIM + "Default: re-login 30s before cutoff (configurable in Settings)." + RST,
-                C_DIM + "Result: zero internet interruption during session renewal." + RST,
+                C_OK + "\u23f1 Instant Auto-Reconnect" + RST + C_DIM + " — reconnects at 0s lease expiry." + RST,
+                C_DIM + "Eliminates premature attempts and retries immediately on error." + RST,
+                C_DIM + "Result: sub-second session renewal with zero wasted delay." + RST,
             ],
             "arp": [
                 C_OK + "\u25ce ARP MAC Bypass" + RST + C_DIM + " — spoof MAC of a bypass device." + RST,

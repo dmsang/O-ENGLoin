@@ -117,7 +117,7 @@ C_KEY    = ColorProxy("key")
 C_VAL    = ColorProxy("val")
 C_DBG    = ColorProxy("dbg")
 
-APP_VERSION  = "1.0.9"
+APP_VERSION  = "1.0.10"
 GITHUB_REPO = "dmsang/O-ENGLoin"
 
 LOGO = [

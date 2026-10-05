@@ -1,5 +1,4 @@
 """awing/screens/auto_login.py — Real-time auto-login screen and BG worker."""
-from awing.beta import should_preempt
 import threading, time
 from awing import (term, bold, C_TITLE, C_BORDER, C_SEL, C_OK, C_ERR, C_WARN,
                    C_DIM, C_KEY, C_VAL, C_DBG, RST, render, center_in,
@@ -35,12 +34,12 @@ def _auto_login_worker(settings, stop_event, is_bg=False):
                 dbg(f"{prefix}Session lease synced: {rem}s ({st_data.get('remaining_str', '')})")
             last_sync[0] = now
 
-        # 2. Instant auto-reconnect: if session reaches <= 2s, renew immediately
-        if rem is not None and rem <= 2:
+        # 2. Instant auto-reconnect when session has just expired (rem <= 0)
+        if rem is not None and rem <= 0:
             _set_status("LOGGING IN", notify=False)
-            _add_log("INFO", f"{prefix}Session expiring ({rem}s) — instant auto-reconnect...")
+            _add_log("INFO", f"{prefix}Session expired (0s) — instant auto-reconnect...")
             t0 = time.time()
-            ok = do_login(settings, _add_log)
+            ok = do_login(settings, _add_log, max_retries=3)
             dur = time.time() - t0
             if ok:
                 _last_login_time[0] = time.time()
@@ -53,8 +52,8 @@ def _auto_login_worker(settings, stop_event, is_bg=False):
                 continue
             else:
                 _set_status("OFFLINE")
-                _add_log("WARN", f"{prefix}Instant re-login failed — retrying in {ret}s...")
-                for _ in range(ret * 2):
+                _add_log("ERR", f"{prefix}Instant re-login failed after retries — next cycle in {ret}s...")
+                for _ in range(max(1, int(ret * 2))):
                     if stop_event.is_set(): return
                     time.sleep(0.5)
                 continue
@@ -62,23 +61,19 @@ def _auto_login_worker(settings, stop_event, is_bg=False):
         # 3. Connectivity check
         _set_status("CHECKING", notify=False)
         dbg(f"{prefix}Checking connection...")
-        online = has_internet(settings, timeout=2.0)
+        online = has_internet(settings, timeout=1.5)
 
         if online:
             _set_status("ONLINE")
-            if should_preempt(settings):
-                _add_log("INFO", f"{prefix}[PREEMPT] Session renewal triggered...")
-                do_login(settings, _add_log)
-
             rem = _get_remaining_sec()
-            # Adaptive sleep: sleep longer when plenty of time, wake up fast near cutoff
+            # Adaptive sleep: sleep longer when plenty of time, wake up fast right at cutoff
             if rem is not None:
                 if rem > 20:
-                    sleep_dur = min(chk, rem - 10)
-                elif rem > 5:
-                    sleep_dur = 2
+                    sleep_dur = min(chk, rem - 5)
+                elif rem > 3:
+                    sleep_dur = min(2.0, rem - 1)
                 else:
-                    sleep_dur = 0.5
+                    sleep_dur = max(0.25, float(rem))
             else:
                 sleep_dur = chk
 
@@ -92,7 +87,7 @@ def _auto_login_worker(settings, stop_event, is_bg=False):
             _add_log("WARN", f"{prefix}Internet lost — attempting login...")
             _set_status("LOGGING IN", notify=False)
             t0 = time.time()
-            ok = do_login(settings, _add_log)
+            ok = do_login(settings, _add_log, max_retries=3)
             dur = time.time() - t0
             if ok:
                 _last_login_time[0] = time.time()
@@ -108,8 +103,8 @@ def _auto_login_worker(settings, stop_event, is_bg=False):
                     time.sleep(0.5)
             else:
                 _set_status("OFFLINE")
-                _add_log("ERR", f"{prefix}Login failed — retrying in {ret}s...")
-                for _ in range(ret * 2):
+                _add_log("ERR", f"{prefix}Login failed after retries — next cycle in {ret}s...")
+                for _ in range(max(1, int(ret * 2))):
                     if stop_event.is_set(): return
                     time.sleep(0.5)
 
