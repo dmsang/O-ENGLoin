@@ -54,7 +54,7 @@ def _get_remaining_sec():
     elapsed = time.time() - _session_sync_time[0]
     return max(0, int(_session_remaining[0] - elapsed))
 
-def _format_remaining_tag(compact=False):
+def _format_remaining_tag(compact=False, show_bar=False, bar_len=8):
     rem = _get_remaining_sec()
     if rem is None:
         return ""
@@ -65,6 +65,12 @@ def _format_remaining_tag(compact=False):
         clr = "\033[38;2;240;180;50m"
     else:
         clr = "\033[38;2;80;200;120m"
-    if compact:
+    if show_bar:
+        pct = max(0.0, min(1.0, rem / 900.0))
+        filled = int(round(pct * bar_len))
+        empty = bar_len - filled
+        bar = "█" * filled + "░" * empty
+        return f" [{clr}{bar}{RST}] {clr}{m:02d}m{s:02d}s{RST}"
+    elif compact:
         return f" Left:{clr}{m:02d}m{s:02d}s{RST}"
     return f"  Session:{clr}{m:02d}m{s:02d}s{RST}"

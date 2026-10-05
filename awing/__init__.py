@@ -6,7 +6,8 @@ from .ui      import (term, RST, bold, C_TITLE, C_BORDER, C_SEL, C_OK, C_ERR,
                       box_bot, box_row, sep_row, strip_ansi, str_width, hide_cursor,
                       show_cursor, enter_alt, exit_alt,
                       read_key, is_mouse_click, mouse_row, mouse_col,
-                      mouse_scroll_up, mouse_scroll_down)
+                      mouse_scroll_up, mouse_scroll_down,
+                      THEMES, apply_theme, BOX_STYLES, set_box_style)
 from .settings import (SETTINGS_FILE, DEFAULT_SETTINGS, SETTING_LABELS,
                        SETTING_KEYS, load_settings, save_settings)
 from .tray    import (_tray_ref, _tray_show, _tray_quit, _notif_on,

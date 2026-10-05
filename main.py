@@ -8,7 +8,8 @@ from awing import (IS_WIN, term, bold, C_TITLE, C_OK, C_WARN, C_DIM, RST,
                    render, center_in, enter_alt, exit_alt, hide_cursor,
                    show_cursor, load_settings, start_tray, stop_tray,
                    hide_console, show_console, _get_hwnd, _notif_on,
-                   _debug_on, _tray_quit, _tray_show)
+                   _debug_on, _tray_quit, _tray_show,
+                   apply_theme, set_box_style)
 from awing.screens import (check_wifi_popup, run_auto_login_screen,
                            start_bg_worker, stop_bg_worker, _bg_stop,
                            network_test_screen, update_screen, help_screen,
@@ -30,6 +31,8 @@ def main():
         return
 
     settings = load_settings()
+    apply_theme(settings.get("theme", "ocean"))
+    set_box_style(settings.get("box_style", "rounded"))
     _notif_on[0] = bool(settings.get("notifications", False))
     _debug_on[0] = bool(settings.get("debug", False))
     from awing.beta import _beta_on, _preempt_on, _arp_on

@@ -139,7 +139,7 @@ def run_auto_login_screen(settings, bg_stop=None):
         rows[0] = box_top(W)
         rows[1] = box_row(W, center_in(C_TITLE + bold(" AWING Auto Login v" + APP_VERSION + " ") + dbg_tag, W - 2))
 
-        rem_tag = _format_remaining_tag(compact=True)
+        rem_tag = _format_remaining_tag(compact=False, show_bar=True) if W >= 85 else _format_remaining_tag(compact=True)
         chk_info = C_DIM + " chk=" + str(chk) + "s" + RST if (W >= 95 or not rem_tag) else ""
         info = (" GW:" + C_VAL + gw + RST +
                 " WiFi:" + sc2 + ssid + RST +
