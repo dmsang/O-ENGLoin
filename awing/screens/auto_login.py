@@ -36,6 +36,15 @@ def _auto_login_worker(settings, stop_event, is_bg=False):
 
         # 2. Instant auto-reconnect when session has just expired (rem <= 0)
         if rem is not None and rem <= 0:
+            if has_internet(settings, timeout=0.6):
+                st_data = get_gateway_status(settings, timeout=0.8)
+                real_rem = st_data.get("remaining_sec")
+                if real_rem is not None and real_rem > 0:
+                    _update_session_remaining(real_rem)
+                    dbg(f"{prefix}Router lease has {real_rem}s remaining, deferring re-login...")
+                    time.sleep(0.5)
+                    continue
+
             _set_status("LOGGING IN", notify=False)
             _add_log("INFO", f"{prefix}Session expired (0s) — instant auto-reconnect...")
             t0 = time.time()
@@ -45,15 +54,15 @@ def _auto_login_worker(settings, stop_event, is_bg=False):
                 _last_login_time[0] = time.time()
                 _set_status("ONLINE")
                 _add_log("OK", f"{prefix}Reconnected in {dur:.1f}s! Session renewed.")
-                st_data = get_gateway_status(settings, timeout=1.5)
+                st_data = get_gateway_status(settings, timeout=1.2)
                 if "remaining_sec" in st_data:
                     _update_session_remaining(st_data["remaining_sec"])
                 last_sync[0] = time.time()
                 continue
             else:
                 _set_status("OFFLINE")
-                _add_log("ERR", f"{prefix}Instant re-login failed after retries — next cycle in {ret}s...")
-                for _ in range(max(1, int(ret * 2))):
+                _add_log("ERR", f"{prefix}Instant re-login failed after retries — next cycle in 1s...")
+                for _ in range(2):
                     if stop_event.is_set(): return
                     time.sleep(0.5)
                 continue
@@ -103,8 +112,8 @@ def _auto_login_worker(settings, stop_event, is_bg=False):
                     time.sleep(0.5)
             else:
                 _set_status("OFFLINE")
-                _add_log("ERR", f"{prefix}Login failed after retries — next cycle in {ret}s...")
-                for _ in range(max(1, int(ret * 2))):
+                _add_log("ERR", f"{prefix}Login failed after retries — next cycle in 1s...")
+                for _ in range(2):
                     if stop_event.is_set(): return
                     time.sleep(0.5)
 
@@ -120,6 +129,8 @@ def run_auto_login_screen(settings, bg_stop=None):
 
     def build():
         W = term.width or 80; H = term.height or 24
+        bw = max(40, W - 2); bx = max(0, (W - bw) // 2)
+        pad = " " * bx
         LOG_Y = 4
         st = _get_status(); sc = STATUS_COLORS.get(st, C_DIM)
         spin = SPIN[spin_i[0] % len(SPIN)]; spin_i[0] += 1
@@ -131,17 +142,17 @@ def run_auto_login_screen(settings, bg_stop=None):
 
         LOG_H = max(1, H - 7)
         rows = [""] * max(H, LOG_Y + LOG_H + 3)
-        rows[0] = box_top(W)
-        rows[1] = box_row(W, center_in(C_TITLE + bold(" AWING Auto Login v" + APP_VERSION + " ") + dbg_tag, W - 2))
+        rows[0] = pad + box_top(bw)
+        rows[1] = pad + box_row(bw, center_in(C_TITLE + bold(" AWING Auto Login v" + APP_VERSION + " ") + dbg_tag, bw - 2))
 
-        rem_tag = _format_remaining_tag(compact=False, show_bar=True) if W >= 85 else _format_remaining_tag(compact=True)
-        chk_info = C_DIM + " chk=" + str(chk) + "s" + RST if (W >= 95 or not rem_tag) else ""
+        rem_tag = _format_remaining_tag(compact=False, show_bar=True) if bw >= 85 else _format_remaining_tag(compact=True)
+        chk_info = C_DIM + " chk=" + str(chk) + "s" + RST if (bw >= 95 or not rem_tag) else ""
         info = (" GW:" + C_VAL + gw + RST +
                 " WiFi:" + sc2 + ssid + RST +
                 " Status:" + sc + bold(st) + RST + sc + " " + spin + RST +
                 rem_tag + chk_info + _last_login_str())
-        rows[2] = box_row(W, info)
-        rows[3] = sep_row(W)
+        rows[2] = pad + box_row(bw, info)
+        rows[3] = pad + sep_row(bw)
 
         with _log_lock:
             total = len(_logs); start = scroll[0]
@@ -154,10 +165,10 @@ def run_auto_login_screen(settings, bg_stop=None):
                 content = " " + C_DIM + ts + RST + " " + c + ic + " " + msg + RST
             else:
                 content = ""
-            rows[LOG_Y + i] = box_row(W, content)
+            rows[LOG_Y + i] = pad + box_row(bw, content)
 
         sep = LOG_Y + LOG_H
-        rows[sep] = sep_row(W)
+        rows[sep] = pad + sep_row(bw)
 
         is_bg = bg_stop is not None
         if total > LOG_H:
@@ -173,8 +184,8 @@ def run_auto_login_screen(settings, bg_stop=None):
             hint = (C_KEY + "\u2191\u2193" + RST + " scroll " + sb +
                     "  " + C_KEY + "End" + RST + " jump to bottom" +
                     "  " + C_KEY + "Q/Esc" + RST + " back to menu")
-        rows[sep + 1] = box_row(W, " " + hint)
-        rows[sep + 2] = box_bot(W)
+        rows[sep + 1] = pad + box_row(bw, " " + hint)
+        rows[sep + 2] = pad + box_bot(bw)
         return rows
 
     try:

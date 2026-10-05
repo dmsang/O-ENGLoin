@@ -1,9 +1,9 @@
 # AWING Auto Login - Installer
-# irm https://raw.githubusercontent.com/dmsang/O-ENGLoin/v1.0.10/install.ps1 | iex
+# irm https://raw.githubusercontent.com/dmsang/O-ENGLoin/v1.0.11/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 $REPO = "dmsang/O-ENGLoin"
-$RAW  = "https://raw.githubusercontent.com/$REPO/v1.0.10"
+$RAW  = "https://raw.githubusercontent.com/$REPO/v1.0.11"
 $INST = "$env:LOCALAPPDATA\AWING-Login"
 
 Write-Host ""

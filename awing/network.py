@@ -73,7 +73,7 @@ def get_session_remaining(settings, timeout=2.0):
 # ── Captive portal ────────────────────────────────────────────────────────────
 def get_captive_info(session, settings, timeout=None):
     gw  = settings["gateway"]
-    tmo = timeout if timeout is not None else min(settings.get("request_timeout", 10), 3.0)
+    tmo = timeout if timeout is not None else min(settings.get("request_timeout", 10), 1.5)
     url = "http://" + gw + "/login"
     r   = session.get(url, timeout=tmo)
     r.raise_for_status()
@@ -96,8 +96,8 @@ def do_login(settings, log_cb, max_retries=3):
         return False
 
     req_tmo = settings.get("request_timeout", 10)
-    gw_tmo  = min(req_tmo, 3.0)
-    wan_tmo = min(req_tmo, 4.0)
+    gw_tmo  = min(req_tmo, 1.5)
+    wan_tmo = min(req_tmo, 3.0)
 
     for attempt in range(1, max_retries + 1):
         session = create_session()

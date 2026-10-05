@@ -117,7 +117,7 @@ C_KEY    = ColorProxy("key")
 C_VAL    = ColorProxy("val")
 C_DBG    = ColorProxy("dbg")
 
-APP_VERSION  = "1.0.10"
+APP_VERSION  = "1.0.11"
 GITHUB_REPO = "dmsang/O-ENGLoin"
 
 LOGO = [
@@ -156,7 +156,14 @@ def set_box_style(style_name):
 def strip_ansi(s): return re.sub(r"\033\[[0-9;?]*[a-zA-Z]", "", str(s))
 def str_width(s):
     plain = strip_ansi(s)
-    return sum(2 if unicodedata.east_asian_width(c) in ("W", "F") else 1 for c in plain)
+    w = 0
+    for c in plain:
+        eaw = unicodedata.east_asian_width(c)
+        if eaw in ("W", "F") or ord(c) in (0x23f1, 0x26a0):
+            w += 2
+        else:
+            w += 1
+    return w
 
 def hide_cursor(): sys.stdout.write("\033[?25l"); sys.stdout.flush()
 def show_cursor(): sys.stdout.write("\033[?25h"); sys.stdout.flush()
@@ -168,7 +175,7 @@ def render(rows: list):
     for i, row in enumerate(rows):
         out.append(row + "\033[K")
         if i < len(rows) - 1:
-            out.append("\n")
+            out.append("\r\n")
     out.append("\033[J\033[?2026l")
     sys.stdout.write("".join(out))
     sys.stdout.flush()

@@ -65,13 +65,14 @@ def beta_screen(settings):
 
     def _build_menu():
         W = term.width or 80; H = max(term.height or 24, 24)
-        rows = [""] * H
         bw = max(30, min(72, W - 4)); bx = max(0, (W - bw) // 2)
+        bh = 15; by = max(1, (H - bh) // 2)
+        rows = [""] * H
 
-        rows[1] = " " * bx + box_top(bw, " \u26a1 BETA FEATURES ")
-        rows[2] = " " * bx + box_row(bw, center_in(
+        rows[by] = " " * bx + box_top(bw, " \u26a1 BETA FEATURES ")
+        rows[by + 1] = " " * bx + box_row(bw, center_in(
             C_WARN + bold(" Experimental — may not work on all networks ") + RST, bw - 2))
-        rows[3] = " " * bx + sep_row(bw)
+        rows[by + 2] = " " * bx + sep_row(bw)
 
         # Feature toggles
         for idx, (skey, label, fkey) in enumerate(ITEMS):
@@ -83,12 +84,11 @@ def beta_screen(settings):
                 content = C_SEL + "  " + pad_lbl + RST + " " + tog
             else:
                 content = "  " + dim + pad_lbl + RST + " " + tog
-            rows[4 + idx] = " " * bx + box_row(bw, content)
+            rows[by + 3 + idx] = " " * bx + box_row(bw, content)
 
-        rows[4 + len(ITEMS)] = " " * bx + sep_row(bw)
+        rows[by + 6] = " " * bx + sep_row(bw)
 
-        # Description panel for selected item
-        desc_row = 5 + len(ITEMS)
+        # Description panel for selected item (fixed 4 rows)
         descs = {
             "master": [
                 C_DIM + "Master switch for all beta features." + RST,
@@ -108,37 +108,38 @@ def beta_screen(settings):
             ],
         }
         _, _, fkey = ITEMS[sel[0]]
-        for i, dline in enumerate(descs.get(fkey, [])):
-            r = desc_row + i
-            if r < H - 4:
-                rows[r] = " " * bx + box_row(bw, "  " + dline)
+        active_desc = descs.get(fkey, [])
+        for i in range(4):
+            dline = active_desc[i] if i < len(active_desc) else ""
+            rows[by + 7 + i] = " " * bx + box_row(bw, "  " + dline if dline else "")
 
-        # ARP status
+        # Status / message bar
         arps = _arp_status[0]
-        if arps != "idle":
-            ars_row = desc_row + 6
-            if ars_row < H - 4:
-                if arps.startswith("spoofing:"):
-                    rows[ars_row] = " " * bx + box_row(bw, "  " + C_OK + "\u2713 Spoofed as: " + arps[9:] + RST)
-                elif arps.startswith("error:"):
-                    rows[ars_row] = " " * bx + box_row(bw, "  " + C_ERR + "\u2717 " + arps[6:] + RST)
-                elif arps == "scanning":
-                    rows[ars_row] = " " * bx + box_row(bw, "  " + C_WARN + "\u29d7 Scanning... " + scan_prog[0] + RST)
-
-        # message bar
-        msg_r = H - 3
         if msg[0]:
             clr = C_OK if msg[0].startswith("\u2713") else C_WARN
-            rows[msg_r] = " " * bx + box_row(bw, clr + msg[0] + RST)
+            status_line = clr + msg[0] + RST
+        elif arps != "idle":
+            if arps.startswith("spoofing:"):
+                status_line = C_OK + "\u2713 Spoofed as: " + arps[9:] + RST
+            elif arps.startswith("error:"):
+                status_line = C_ERR + "\u2717 " + arps[6:] + RST
+            elif arps == "scanning":
+                status_line = C_WARN + "\u29d7 Scanning... " + scan_prog[0] + RST
+            else:
+                status_line = ""
+        else:
+            status_line = ""
+        rows[by + 11] = " " * bx + box_row(bw, ("  " + status_line) if status_line else "")
 
-        # hints
+        # separator + hints + bottom
+        rows[by + 12] = " " * bx + sep_row(bw)
         hint = (C_KEY + "\u2191\u2193" + RST + " move   " +
                 C_KEY + "Enter/Space" + RST + " toggle   " +
                 C_KEY + "S" + RST + " ARP scan   " +
                 C_KEY + "R" + RST + " restore MAC   " +
                 C_KEY + "Q" + RST + " back")
-        rows[H - 2] = " " * bx + box_row(bw, " " + hint)
-        rows[H - 1] = " " * bx + box_bot(bw)
+        rows[by + 13] = " " * bx + box_row(bw, center_in(hint, bw - 2))
+        rows[by + 14] = " " * bx + box_bot(bw)
         return rows
 
     def _build_scan():
